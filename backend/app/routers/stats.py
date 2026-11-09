@@ -1,9 +1,12 @@
+from typing import Annotated
+
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from app.core.db import get_db
 from app.core.deps import auth_required, owned_thesis
+from app.core.ratelimit import limit_user
 from app.models.models import Thesis, ThesisTable
 from app.services import stats
 
@@ -26,14 +29,15 @@ class AnalyzeIn(BaseModel):
 class TableIn(BaseModel):
     title: str = Field(min_length=1, max_length=255)
     caption: str = Field(default="", max_length=600)
-    columns: list[str] = Field(min_length=1, max_length=12)
-    rows: list[list[str]] = Field(max_length=200)
+    columns: list[Annotated[str, Field(max_length=100)]] = Field(min_length=1, max_length=12)
+    rows: list[list[Annotated[str, Field(max_length=500)]]] = Field(max_length=200)
     note: str = Field(default="", max_length=800)
-    chapter: str = Field(default="4", pattern=r"^\d{1,2}$")
+    chapter: str = Field(default="4", pattern=r"^(?:[1-9]|1[0-2])$")
 
 
 @router.post("/stats/analyze")
 def analyze(payload: AnalyzeIn, user=Depends(auth_required)):
+    limit_user(user.user_id, "stats-analyze", 30, 60)
     names = [g.name.strip() for g in payload.groups]
     if len(set(names)) != len(names):
         raise HTTPException(422, "Nama kelompok harus unik")
@@ -57,6 +61,7 @@ def table_out(t: ThesisTable) -> dict:
 
 @router.post("/theses/{thesis_id}/tables", status_code=201)
 def add_table(payload: TableIn, thesis: Thesis = Depends(owned_thesis), db: Session = Depends(get_db)):
+    limit_user(thesis.user_id, "table-add", 30, 60)
     if len(thesis.tables) >= MAX_TABLES_PER_THESIS:
         raise HTTPException(422, f"Maksimal {MAX_TABLES_PER_THESIS} tabel per proyek")
     width = len(payload.columns)

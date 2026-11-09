@@ -2,8 +2,9 @@ from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from app.core.db import get_db
-from app.models.models import TitleOption
 from app.core.deps import owned_thesis
+from app.core.ratelimit import limit_user
+from app.models.models import TitleOption
 from app.schemas.schemas import GenerateOut
 from app.services.agents import rag, writer
 from app.services.agents.context import context_keywords, other_texts, results_data, sections_digest
@@ -39,6 +40,7 @@ async def _titles(thesis, db: Session):
 
 @router.post("/{thesis_id}/titles")
 async def generate_titles(thesis=Depends(owned_thesis), db: Session = Depends(get_db)):
+    limit_user(thesis.user_id, "generate-titles", 20, 60)
     titles, provider = await _titles(thesis, db)
     return {"provider": provider, "titles": titles}
 
@@ -52,6 +54,7 @@ async def generate_section(
 ):
     from app.models.models import Citation, ThesisSection
 
+    limit_user(thesis.user_id, "generate-section", 20, 60)
     section = (
         db.query(ThesisSection)
         .filter(ThesisSection.thesis_id == thesis.thesis_id, ThesisSection.section_code == section_code)
@@ -148,6 +151,7 @@ def run_full_pipeline(
     thesis=Depends(owned_thesis),
     db: Session = Depends(get_db),
 ):
+    limit_user(thesis.user_id, "pipeline-run", 3, 60)
     job = create_job(db, thesis.thesis_id)
     background.add_task(run_pipeline, job.job_id, thesis.thesis_id)
     return {"job_id": job.job_id, "status": "QUEUED"}

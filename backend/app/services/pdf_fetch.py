@@ -13,7 +13,9 @@ from urllib.parse import urljoin, urlsplit
 import httpx
 
 MAX_BYTES = 30 * 1024 * 1024
+MAX_URL_CHARS = 2048
 MAX_REDIRECTS = 4
+ALLOWED_PORTS = (80, 443)
 _UA = {"User-Agent": "SkripsiAI/1.0 (academic pdf viewer)", "Accept": "application/pdf,*/*;q=0.5"}
 
 
@@ -42,9 +44,19 @@ def _is_public(addr: str) -> bool:
 
 
 async def assert_public_url(url: str) -> None:
+    if len(url) > MAX_URL_CHARS:
+        raise PdfFetchError("Tautan PDF terlalu panjang")
     parts = urlsplit(url)
     if parts.scheme not in ("http", "https") or not parts.hostname:
         raise PdfFetchError("Tautan PDF harus berupa http/https")
+    if parts.username or parts.password:
+        raise PdfFetchError("Tautan PDF tidak boleh memuat kredensial")
+    try:
+        port = parts.port
+    except ValueError:
+        raise PdfFetchError("Port tautan PDF tidak valid")
+    if port is not None and port not in ALLOWED_PORTS:
+        raise PdfFetchError("Port tautan PDF tidak diizinkan")
     host = parts.hostname
     try:
         addrs = [str(ipaddress.ip_address(host))]  # host sudah berupa IP
@@ -72,7 +84,18 @@ async def fetch_pdf(url: str) -> bytes:
                         continue
                     if res.status_code != 200:
                         raise PdfFetchError(f"Server PDF menjawab status {res.status_code}", 502)
-                    declared = int(res.headers.get("content-length") or 0)
+                    network_stream = res.extensions.get("network_stream")
+                    server_addr = (
+                        network_stream.get_extra_info("server_addr")
+                        if network_stream is not None and hasattr(network_stream, "get_extra_info")
+                        else None
+                    )
+                    if server_addr and not _is_public(str(server_addr[0])):
+                        raise PdfFetchError("Tautan PDF mengarah ke alamat non-publik dan ditolak", 400)
+                    try:
+                        declared = int(res.headers.get("content-length") or 0)
+                    except ValueError:
+                        raise PdfFetchError("Server PDF mengirim Content-Length tidak valid", 502)
                     if declared > MAX_BYTES:
                         raise PdfFetchError("Berkas PDF terlalu besar (maks 30 MB)", 413)
                     chunks: list[bytes] = []

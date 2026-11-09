@@ -2,8 +2,9 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from app.core.db import get_db
-from app.models.models import Thesis
 from app.core.deps import owned_thesis
+from app.core.ratelimit import limit_user
+from app.models.models import Thesis
 from app.services import push
 from app.services.agents import panel
 
@@ -12,6 +13,7 @@ router = APIRouter(prefix="/theses", tags=["review"])
 
 @router.post("/{thesis_id}/review")
 async def run_review(thesis: Thesis = Depends(owned_thesis), db: Session = Depends(get_db)):
+    limit_user(thesis.user_id, "run-review", 10, 60)
     reviews = await panel.run_panel(thesis, db)
     thesis.review_json = {k: {kk: vv for kk, vv in v.items() if kk != "agent"} for k, v in reviews.items()}
     db.commit()

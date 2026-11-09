@@ -64,6 +64,11 @@ class SaveIn(BaseModel):
 
 @router.post("/custom", status_code=201)
 def save_custom(payload: SaveIn, user: User = Depends(auth_required), db: Session = Depends(get_db)):
+    limit_user(user.user_id, "template-save", 10, 60)
+    if len(json.dumps(payload.template)) > MAX_TEMPLATE_JSON:
+        raise HTTPException(413, "Spesifikasi templat terlalu besar")
+    if len(json.dumps(payload.report)) > MAX_REPORT_JSON:
+        raise HTTPException(413, "Laporan parsing terlalu besar")
     count = sum(1 for r in db.query(CustomTemplate).filter(CustomTemplate.user_id == user.user_id).all() if not (r.spec_json or {}).get("project_scoped"))
     if count >= MAX_CUSTOM_PER_USER:
         raise HTTPException(422, f"Maksimal {MAX_CUSTOM_PER_USER} templat kustom; hapus salah satu dulu")
@@ -92,7 +97,7 @@ def save_custom(payload: SaveIn, user: User = Depends(auth_required), db: Sessio
 @router.get("/{template_id}")
 def get_template_detail(
     template_id: str,
-    language: str = "id",
+    language: str = Query("id", max_length=10),
     user: User = Depends(auth_required),
     db: Session = Depends(get_db),
 ):

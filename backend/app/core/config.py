@@ -56,7 +56,7 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def _secure_secret(self):
-        if self.secret_key.strip() in _INSECURE_SECRETS:
+        if self.secret_key.strip() in _INSECURE_SECRETS or len(self.secret_key.strip()) < 32:
             self.secret_key = secrets.token_urlsafe(48)
             log.warning(
                 "SKRIPSI_SECRET_KEY tidak diisi dengan aman; memakai kunci acak sementara. "

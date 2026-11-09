@@ -6,6 +6,17 @@ from fastapi import HTTPException, Request
 
 _lock = threading.Lock()
 _events: dict[str, deque[float]] = {}
+MAX_KEYS = 10_000
+MAX_WINDOW = 3600
+
+
+def _prune_all(now: float) -> None:
+    for key, bucket in list(_events.items()):
+        cutoff = now - MAX_WINDOW
+        while bucket and bucket[0] <= cutoff:
+            bucket.popleft()
+        if not bucket:
+            _events.pop(key, None)
 
 
 def _key_events(key: str, window: int, now: float) -> deque[float]:
@@ -22,6 +33,8 @@ def _key_events(key: str, window: int, now: float) -> deque[float]:
 def hit(key: str, limit: int, window: int) -> bool:
     now = time.monotonic()
     with _lock:
+        if len(_events) > MAX_KEYS:
+            _prune_all(now)
         bucket = _key_events(key, window, now)
         if len(bucket) >= limit:
             return False

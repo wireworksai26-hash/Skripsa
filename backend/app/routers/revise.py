@@ -1,9 +1,12 @@
+from typing import Annotated
+
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from app.core.db import get_db
 from app.core.deps import owned_thesis
+from app.core.ratelimit import limit_user
 from app.models.models import Citation, SectionVersion, Thesis, ThesisSection
 from app.services.agents import rag, reviser
 from app.services.agents.context import context_keywords, other_texts, sections_digest
@@ -16,7 +19,7 @@ MAX_VERSIONS_PER_SECTION = 10
 
 
 class ReviseIn(BaseModel):
-    feedback: list[str] = Field(min_length=1, max_length=14)
+    feedback: list[Annotated[str, Field(max_length=4000)]] = Field(min_length=1, max_length=14)
     include_imported: bool = False
 
 
@@ -74,6 +77,7 @@ async def revise(
     thesis: Thesis = Depends(owned_thesis),
     db: Session = Depends(get_db),
 ):
+    limit_user(f"{thesis.user_id}:{thesis.thesis_id}", "revise-section", 60, 60)
     section = _find(db, thesis, section_code)
     if valid_word_count(section.content_markdown or "") < 10:
         raise HTTPException(422, "Subbab ini belum berisi draf; buat dulu sebelum diperbaiki")

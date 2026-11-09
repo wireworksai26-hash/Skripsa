@@ -1,9 +1,12 @@
-from fastapi import APIRouter, Depends, HTTPException, Response
+from typing import Annotated
+
+from fastapi import APIRouter, Body, Depends, HTTPException, Response
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from app.core.db import get_db
 from app.core.deps import auth_required, owned_thesis
+from app.core.ratelimit import limit_user
 from app.models.models import Citation, SectionVersion, ShareComment, Thesis, User
 from app.services import insights, refs_io
 from app.services.agents import documents
@@ -24,13 +27,14 @@ def _gen_error(exc: GenerationError) -> HTTPException:
 class FrontIn(BaseModel):
     abstract_id: str = Field(default="", max_length=4000)
     abstract_en: str = Field(default="", max_length=4000)
-    keywords_id: list[str] = Field(default_factory=list, max_length=8)
-    keywords_en: list[str] = Field(default_factory=list, max_length=8)
+    keywords_id: list[Annotated[str, Field(max_length=100)]] = Field(default_factory=list, max_length=8)
+    keywords_en: list[Annotated[str, Field(max_length=100)]] = Field(default_factory=list, max_length=8)
     preface: str = Field(default="", max_length=8000)
 
 
 @router.post("/{thesis_id}/front-matter/generate")
 async def generate_front(thesis: Thesis = Depends(owned_thesis), db: Session = Depends(get_db)):
+    limit_user(thesis.user_id, "front-generate", 20, 60)
     try:
         data, provider = await documents.generate_front_matter(thesis, db)
     except GenerationError as exc:
@@ -55,11 +59,12 @@ class AppendixItem(BaseModel):
     kind: str = "kuesioner"
     title: str = Field(max_length=200)
     intro: str = Field(default="", max_length=3000)
-    items: list[str] = Field(default_factory=list, max_length=60)
+    items: list[Annotated[str, Field(max_length=1000)]] = Field(default_factory=list, max_length=60)
 
 
 @router.post("/{thesis_id}/appendices/generate")
 async def generate_appendices(thesis: Thesis = Depends(owned_thesis), db: Session = Depends(get_db)):
+    limit_user(thesis.user_id, "appendices-generate", 20, 60)
     try:
         data, provider = await documents.generate_appendices(thesis, db)
     except GenerationError as exc:
@@ -70,7 +75,7 @@ async def generate_appendices(thesis: Thesis = Depends(owned_thesis), db: Sessio
 
 
 @router.put("/{thesis_id}/appendices")
-def save_appendices(payload: list[AppendixItem], thesis: Thesis = Depends(owned_thesis), db: Session = Depends(get_db)):
+def save_appendices(payload: list[AppendixItem] = Body(..., max_length=6), thesis: Thesis = Depends(owned_thesis), db: Session = Depends(get_db)):
     out = []
     for i, a in enumerate(payload[:6], start=1):
         d = a.model_dump()
@@ -98,6 +103,7 @@ def _ref_dict(c: Citation) -> dict:
 
 @router.post("/{thesis_id}/citations/import")
 def import_refs(payload: ImportRefsIn, thesis: Thesis = Depends(owned_thesis), db: Session = Depends(get_db)):
+    limit_user(thesis.user_id, "import-refs", 10, 60)
     parsed = refs_io.parse_references(payload.text)
     if not parsed:
         raise HTTPException(422, "Tidak ada referensi yang terbaca. Gunakan berkas BibTeX (.bib) atau RIS (.ris).")
@@ -141,6 +147,7 @@ class DefenseIn(BaseModel):
 
 @router.post("/{thesis_id}/defense/evaluate")
 async def defense_evaluate(payload: DefenseIn, thesis: Thesis = Depends(owned_thesis), db: Session = Depends(get_db)):
+    limit_user(thesis.user_id, "defense-evaluate", 20, 60)
     try:
         result, provider = await documents.evaluate_defense(thesis, db, payload.question, payload.answer)
     except GenerationError as exc:
@@ -169,6 +176,7 @@ def section_versions(section_code: str, thesis: Thesis = Depends(owned_thesis), 
 
 @router.post("/{thesis_id}/share")
 def create_share(thesis: Thesis = Depends(owned_thesis), db: Session = Depends(get_db)):
+    limit_user(thesis.user_id, "share-create", 30, 60)
     if not thesis.share_token:
         thesis.share_token = secrets.token_urlsafe(24)
         db.commit()

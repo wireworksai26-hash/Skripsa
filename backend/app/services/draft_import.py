@@ -7,12 +7,15 @@ peringatan, bukan ditebak.
 
 import io
 import re
+import zipfile
 from dataclasses import dataclass, field
 
 from app.services.guideline_parser import ParseError, extract_pdf_text
 
 MAX_BYTES = 10 * 1024 * 1024
 MAX_CHARS = 600_000
+MAX_DOCX_UNCOMPRESSED = 80 * 1024 * 1024
+MAX_DOCX_ENTRY = 20 * 1024 * 1024
 _ROMAN = {"I": 1, "II": 2, "III": 3, "IV": 4, "V": 5, "VI": 6, "VII": 7, "VIII": 8, "IX": 9, "X": 10}
 
 _CHAPTER = re.compile(r"^\s*BAB\s+([IVX]{1,5}|\d{1,2})\b[\s.:\-–—]*(.*)$", re.IGNORECASE)
@@ -53,9 +56,23 @@ def extract_text(filename: str, data: bytes) -> tuple[str, bool]:
     name = (filename or "").lower()
     if name.endswith(".docx") or data[:2] == b"PK":
         try:
+            with zipfile.ZipFile(io.BytesIO(data)) as archive:
+                total = 0
+                for info in archive.infolist():
+                    if info.is_dir():
+                        continue
+                    if info.file_size > MAX_DOCX_ENTRY:
+                        raise ParseError("Isi .docx terlalu besar setelah dekompresi", 413)
+                    with archive.open(info) as member:
+                        while chunk := member.read(1024 * 1024):
+                            total += len(chunk)
+                            if total > MAX_DOCX_UNCOMPRESSED:
+                                raise ParseError("Isi .docx terlalu besar setelah dekompresi", 413)
             import docx
 
             doc = docx.Document(io.BytesIO(data))
+        except ParseError:
+            raise
         except Exception:
             raise ParseError("Berkas .docx tidak dapat dibaca (rusak atau bukan dokumen Word)")
         return "\n".join(p.text for p in doc.paragraphs), False

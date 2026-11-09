@@ -1,9 +1,12 @@
+from typing import Annotated
+
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from app.core.db import get_db
 from app.core.deps import owned_thesis
+from app.core.ratelimit import limit_user
 from app.models.models import Citation, Thesis
 from app.services.agents import visual_planner
 from app.services.agents.context import results_data
@@ -13,13 +16,14 @@ router = APIRouter(prefix="/theses", tags=["visuals"])
 
 
 class PlanIn(BaseModel):
-    chapters: list[str] = Field(default_factory=list, max_length=12)
+    chapters: list[Annotated[str, Field(max_length=2)]] = Field(default_factory=list, max_length=12)
     extra: str = Field(default="", max_length=500)
 
 
 @router.post("/{thesis_id}/visuals/plan")
 async def plan(payload: PlanIn, thesis: Thesis = Depends(owned_thesis), db: Session = Depends(get_db)):
     """Usulan tabel & diagram per bab. Hanya saran: tidak ada yang disimpan sebelum pengguna menyetujuinya."""
+    limit_user(thesis.user_id, "visual-plan", 20, 60)
     language = thesis.language or "id"
     template = localize_template(resolve_template(db, thesis.campus_template_id), language)
     by_chapter: dict[str, list] = {}
