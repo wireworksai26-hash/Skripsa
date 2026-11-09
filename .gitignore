@@ -1,6 +1,4 @@
-# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
-
-# dependencies
+# ===== Node / Next.js =====
 /node_modules
 /.pnp
 .pnp.*
@@ -9,33 +7,55 @@
 !.yarn/plugins
 !.yarn/releases
 !.yarn/versions
-
-# testing
-/coverage
-
-# next.js
 /.next/
+/.next-test/
 /out/
-
-# production
 /build
-
-# misc
-.DS_Store
-*.pem
-
-# debug
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-.pnpm-debug.log*
-
-# env files (can opt-in for committing if needed)
-.env*
-
-# vercel
-.vercel
-
-# typescript
+/coverage
 *.tsbuildinfo
 next-env.d.ts
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+.vercel
+
+# ===== Python / FastAPI =====
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.egg-info/
+
+# ===== Rahasia dan konfigurasi lokal =====
+# Kunci API (NIM, Groq, Gemini, OneSignal, dst.) hanya di berkas ini, jangan pernah di-commit.
+.env
+.env.*
+!.env.example
+!backend/.env.example
+*.pem
+
+# ===== Data pengguna dan hasil jalan =====
+# Basis data SQLite berisi akun, draf, dan data penelitian pengguna.
+*.db
+*.sqlite
+*.sqlite3
+*.log
+dev.out.log
+dev.err.log
+backend/uvicorn.*.log
+
+# Contoh keluaran dan pedoman yang diunggah saat pengujian
+/result/
+/reference/
+
+# ===== Alat dan editor =====
+/.opencode/
+.claude/
+.idea/
+.vscode/*
+!.vscode/extensions.json
+.DS_Store
+Thumbs.db

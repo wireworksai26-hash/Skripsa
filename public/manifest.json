@@ -1,0 +1,68 @@
+{
+  "name": "SkripsiAI — Generator Skripsi Multi-Agent",
+  "short_name": "SkripsiAI",
+  "description": "Platform penulisan skripsi cerdas: formulir tanpa prompting, rujukan ilmiah nyata, verifikasi sitasi, dan review multi-agent.",
+  "id": "/",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "theme_color": "#f6f5f4",
+  "background_color": "#f6f5f4",
+  "lang": "id",
+  "dir": "ltr",
+  "categories": [
+    "education",
+    "productivity"
+  ],
+  "icons": [
+    {
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Proyek Baru",
+      "short_name": "Proyek Baru",
+      "description": "Mulai proyek skripsi baru lewat formulir inisiasi",
+      "url": "/proyek/1-inisiasi",
+      "icons": [
+        {
+          "src": "/icons/icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "Profil & Sampul",
+      "short_name": "Profil",
+      "description": "Atur data sampul dan notifikasi",
+      "url": "/profil",
+      "icons": [
+        {
+          "src": "/icons/icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    }
+  ],
+  "display_override": [
+    "standalone",
+    "minimal-ui"
+  ]
+}
