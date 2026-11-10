@@ -9,7 +9,7 @@ from app.core.deps import auth_required, owned_thesis
 from app.core.ratelimit import limit_user
 from app.models.models import Citation, SectionVersion, ShareComment, Thesis, User
 from app.core.ratelimit import limit_user
-from app.services import citation_audit, insights, integrity, refs_io
+from app.services import citation_audit, foundational, insights, integrity, refs_io
 from app.services.agents import documents
 from app.services.agents.documents import GenerationError
 import secrets
@@ -125,6 +125,52 @@ def import_refs(payload: ImportRefsIn, thesis: Thesis = Depends(owned_thesis), d
         added.append(c)
     db.commit()
     return {"added": len(added), "skipped_duplicates": skipped, "citation_ids": [c.citation_id for c in added], "without_year": sum(1 for c in added if not c.publication_year), "without_authors": sum(1 for c in added if not c.authors)}
+
+
+def _citation_dict(c: Citation) -> dict:
+    return {
+        "citation_id": c.citation_id, "doi": c.doi, "title": c.title, "authors": c.authors or [],
+        "publication_year": c.publication_year, "journal_name": c.journal_name, "volume_issue": c.volume_issue,
+        "page_range": c.page_range, "pdf_url": c.pdf_url, "highlighted_snippet": c.highlighted_snippet or "",
+        "source_database": c.source_database, "cited_by": c.cited_by or 0,
+    }
+
+
+@router.post("/{thesis_id}/citations/foundational")
+async def foundational_refs(thesis: Thesis = Depends(owned_thesis), db: Session = Depends(get_db)):
+    """Cocokkan daftar di isian Teori (Mode lanjutan) ke OpenAlex/Crossref. Hanya karya yang benar-benar ditemukan disimpan."""
+    limit_user(thesis.user_id, "foundational", 6, 60)
+    theory = str((thesis.brief_json or {}).get("theory") or "").strip()
+    if not theory:
+        raise HTTPException(422, "Isian Teori masih kosong. Isi di Langkah 1 (Mode lanjutan), satu rujukan per baris.")
+    result = await foundational.resolve_all(theory)
+
+    rows = db.query(Citation).filter(Citation.thesis_id == thesis.thesis_id).all()
+    by_doi = {c.doi: c for c in rows if c.doi}
+    by_title = {c.title.strip().lower(): c for c in rows}
+    found, new_count = [], 0
+    for item in result["found"]:
+        r = item["ref"]
+        existing = (by_doi.get(r.get("doi")) if r.get("doi") else None) or by_title.get(str(r["title"]).strip().lower())
+        if existing:
+            found.append({**_citation_dict(existing), "already": True, "entry": item["entry"]["raw"], "note": item.get("note", "")})
+            continue
+        c = Citation(
+            thesis_id=thesis.thesis_id, doi=r.get("doi"), title=r["title"], authors=r.get("authors") or [],
+            publication_year=r.get("publication_year") or 0, journal_name=r.get("journal_name"),
+            volume_issue=r.get("volume_issue"), page_range=r.get("page_range"), pdf_url=r.get("pdf_url"),
+            highlighted_snippet=r.get("highlighted_snippet") or "", cited_by=r.get("cited_by") or 0,
+            source_database=f"Teori · {r.get('source_database') or 'basis data'}"[:50],
+        )
+        db.add(c)
+        db.flush()
+        by_title[c.title.strip().lower()] = c
+        if c.doi:
+            by_doi[c.doi] = c
+        new_count += 1
+        found.append({**_citation_dict(c), "already": False, "entry": item["entry"]["raw"], "note": item.get("note", "")})
+    db.commit()
+    return {"found": found, "added": new_count, "not_found": result["not_found"], "unparsed": result["unparsed"]}
 
 
 @router.get("/{thesis_id}/citations/export")

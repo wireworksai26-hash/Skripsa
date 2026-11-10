@@ -67,7 +67,12 @@ def _clean_brief(brief) -> dict | None:
     """Simpan hanya bagian yang diisi; kosong semua = tidak ada kerangka."""
     if brief is None:
         return None
-    data = {k: " ".join(v.split()) for k, v in brief.model_dump().items() if v and v.strip()}
+    def tidy(key: str, v: str) -> str:
+        if key == "theory":  # daftar rujukan: satu per baris, jadi pemisah baris dipertahankan
+            return "\n".join(" ".join(line.split()) for line in v.splitlines() if line.strip())
+        return " ".join(v.split())
+
+    data = {k: tidy(k, v) for k, v in brief.model_dump().items() if v and v.strip()}
     return data or None
 
 

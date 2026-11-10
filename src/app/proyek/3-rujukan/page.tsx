@@ -2,6 +2,7 @@
 
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { FoundationalCard } from "@/components/wizard/foundational-card";
 import { RefsIoCard } from "@/components/wizard/refs-io-card";
 import { Pill } from "@/components/ui/pill";
 import { useProject } from "@/lib/store";
@@ -145,6 +146,8 @@ export default function RujukanPage() {
         )}
       </Card>
 
+      <FoundationalCard />
+
       <RefsIoCard />
 
       {project.references.length === 0 && (
@@ -227,7 +230,8 @@ function RefCard({ r }: { r: Reference }) {
         </button>
       </div>
       <div className="mt-3 flex flex-wrap items-center gap-2">
-        <Pill tone="basic">{r.source}</Pill>
+        {r.source.startsWith("Teori") && <Pill tone="blue">Teori dasar</Pill>}
+        <Pill tone="basic">{r.source.replace(/^Teori · /, "")}</Pill>
         {typeof r.citedBy === "number" && r.citedBy > 0 && <Pill tone="sky">Sitasi {r.citedBy}</Pill>}
         {r.doi && (
           <a

@@ -44,6 +44,13 @@ export interface ExistingStart {
   sections: Array<{ section_code: string; title: string; content: string }>;
 }
 
+export interface FoundationalResult {
+  found: Array<ServerCitation & { already: boolean; entry: string; note: string }>;
+  added: number;
+  not_found: Array<{ raw: string; reason: string; closest: { title: string | null; year: number | null; doi: string | null } | null }>;
+  unparsed: Array<{ raw: string; reason: string }>;
+}
+
 export const API_URL = (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000").replace(/\/+$/, "");
 
 const AUTH_KEY = "skripsi-ai-auth";
@@ -227,7 +234,7 @@ interface ServerThesis {
 
 const mapReference = (c: ServerCitation): Reference => ({
   id: c.citation_id,
-  source: c.source_database as Reference["source"],
+  source: c.source_database,
   doi: c.doi ?? undefined,
   title: c.title,
   authors: c.authors,
@@ -626,6 +633,7 @@ export const api = {
 
   importRefs: (id: string, text: string) =>
     request<{ added: number; skipped_duplicates: number; without_year: number; without_authors: number }>(`/theses/${id}/citations/import`, { method: "POST", body: { text } }),
+  foundationalRefs: (id: string) => request<FoundationalResult>(`/theses/${id}/citations/foundational`, { method: "POST", body: {} }),
   exportRefs: async (id: string, format: "bibtex" | "ris", selectedOnly: boolean): Promise<Blob> => {
     const session = readSession();
     let res: Response;

@@ -28,7 +28,7 @@ export interface TitleOption {
 
 export interface Reference {
   id: string;
-  source: "OpenAlex" | "Crossref" | "DOAJ" | "ERIC" | "CORE" | "SemanticScholar" | "arXiv";
+  source: string; // OpenAlex, Crossref, DOAJ, ERIC, CORE, SemanticScholar, arXiv, atau "Teori · <sumber>" (teori dasar)
   doi?: string;
   title: string;
   authors: string[];
