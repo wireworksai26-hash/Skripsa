@@ -20,16 +20,16 @@ const sourceSerif = Source_Serif_4({
 
 export const metadata: Metadata = {
   title: {
-    default: "SkripsiAI — Generator Skripsi Multi-Agent",
-    template: "%s · SkripsiAI",
+    default: "Skripsa — Generator Skripsi Multi-Agent",
+    template: "%s · Skripsa",
   },
   description:
     "Platform penulisan skripsi cerdas berarsitektur multi-agent: formulir tanpa prompting, rujukan jurnal nyata (OpenAlex, Crossref, DOAJ, ERIC), verifikasi sitasi, dan review Dosen Pembimbing & Penguji.",
-  applicationName: "SkripsiAI",
+  applicationName: "Skripsa",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
-    title: "SkripsiAI",
+    title: "Skripsa",
     statusBarStyle: "default",
   },
   icons: {

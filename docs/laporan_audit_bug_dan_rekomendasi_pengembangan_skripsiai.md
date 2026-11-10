@@ -1,6 +1,6 @@
-# Laporan Audit Teknis, Daftar Bug, & Roadmap Perbaikan Platform SkripsiAI
+# Laporan Audit Teknis, Daftar Bug, & Roadmap Perbaikan Platform Skripsa
 
-**Proyek:** SkripsiAI (Multi-Agent Thesis Generator PWA)
+**Proyek:** Skripsa (Multi-Agent Thesis Generator PWA)
 
 **Dokumen Uji:** `Students’ Voices on the Effectiveness of Peer-Presentations Followed by Teacher’.docx`
 
@@ -10,7 +10,7 @@
 
 ## 1. Ringkasan Eksekutif
 
-Secara fungsional, *pipeline* dasar **SkripsiAI** sudah berhasil mengeksekusi alur *end-to-end* mulai dari pembuatan kerangka bab, penarikan referensi ber-DOI, penyusunan daftar isi otomatis, hingga penyisipan gambar diagram ke dalam format `.docx`.
+Secara fungsional, *pipeline* dasar **Skripsa** sudah berhasil mengeksekusi alur *end-to-end* mulai dari pembuatan kerangka bab, penarikan referensi ber-DOI, penyusunan daftar isi otomatis, hingga penyisipan gambar diagram ke dalam format `.docx`.
 
 Namun, dari sisi **kualitas substansi akademik**, **isolasi konteks antar-agen (*multi-agent orchestration*)**, dan **kepatuhan terhadap pedoman universitas**, masih ditemukan sejumlah *bug* kritis yang menyebabkan dokumen terlihat jelas sebagai hasil *auto-generation* mentah dan berisiko tinggi ditolak saat bimbingan.
 
@@ -249,7 +249,7 @@ Namun, dari sisi **kualitas substansi akademik**, **isolasi konteks antar-agen (
 
 ## 4. Rekomendasi Penambahan Tabel & Gambar/Bagan yang Masuk Akal
 
-Agar draf skripsi yang dihasilkan **SkripsiAI** terlihat berbobot, realistis, dan memenuhi target minimal **40 halaman isi** secara bermakna (bukan dengan mengulang paragraf), *engine* kamu sebaiknya men-*generate* tabel dan bagan kontekstual berikut di setiap bab:
+Agar draf skripsi yang dihasilkan **Skripsa** terlihat berbobot, realistis, dan memenuhi target minimal **40 halaman isi** secara bermakna (bukan dengan mengulang paragraf), *engine* kamu sebaiknya men-*generate* tabel dan bagan kontekstual berikut di setiap bab:
 
 ### A. Bab II (Literature Review)
 

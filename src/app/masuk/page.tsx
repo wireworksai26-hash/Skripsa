@@ -69,7 +69,7 @@ export default function MasukPage() {
           <span className="grid h-9 w-9 place-items-center rounded-btn bg-brand text-white">
             <BookMarked size={18} />
           </span>
-          <span className="text-[18px] tracking-tight">SkripsiAI</span>
+          <span className="text-[18px] tracking-tight">Skripsa</span>
         </Link>
 
         <Card>

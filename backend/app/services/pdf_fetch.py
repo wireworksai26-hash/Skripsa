@@ -16,7 +16,7 @@ MAX_BYTES = 30 * 1024 * 1024
 MAX_URL_CHARS = 2048
 MAX_REDIRECTS = 4
 ALLOWED_PORTS = (80, 443)
-_UA = {"User-Agent": "SkripsiAI/1.0 (academic pdf viewer)", "Accept": "application/pdf,*/*;q=0.5"}
+_UA = {"User-Agent": "Skripsa/1.0 (academic pdf viewer)", "Accept": "application/pdf,*/*;q=0.5"}
 
 
 class PdfFetchError(Exception):

@@ -84,7 +84,7 @@ export default function BimbinganPage() {
           <span className="grid h-8 w-8 place-items-center rounded-btn bg-brand text-white">
             <BookMarked size={17} />
           </span>
-          <span className="font-bold tracking-tight">SkripsiAI</span>
+          <span className="font-bold tracking-tight">Skripsa</span>
           <Pill className="ml-auto">Mode pembimbing · baca dan komentar</Pill>
         </div>
       </header>

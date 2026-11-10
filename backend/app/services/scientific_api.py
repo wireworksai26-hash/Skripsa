@@ -6,7 +6,7 @@ import httpx
 
 from app.core.config import settings
 
-_UA = {"User-Agent": "SkripsiAI/1.0 (academic reference fetcher)"}
+_UA = {"User-Agent": "Skripsa/1.0 (academic reference fetcher)"}
 
 
 def clean_doi(raw: str | None) -> str | None:

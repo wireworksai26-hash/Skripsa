@@ -71,7 +71,7 @@ const LABELS: Record<"id" | "en", ExportLabels> = {
     figure: "Gambar",
     note: "Catatan: ",
     draft: "DRAF SKRIPSI",
-    generatedLine: "Draf dihasilkan dengan asistensi multi-agent SkripsiAI",
+    generatedLine: "Draf dihasilkan dengan asistensi multi-agent Skripsa",
     disclaimer:
       "Dokumen ini adalah draf awal bahan bimbingan — wajib dievaluasi, ditulis ulang, dan disetujui bersama Dosen Pembimbing.",
     dateLocale: "id-ID",
@@ -91,7 +91,7 @@ const LABELS: Record<"id" | "en", ExportLabels> = {
     figure: "Figure",
     note: "Note: ",
     draft: "THESIS DRAFT",
-    generatedLine: "Draft produced with SkripsiAI multi-agent assistance",
+    generatedLine: "Draft produced with Skripsa multi-agent assistance",
     disclaimer:
       "This document is an initial draft for supervision — it must be evaluated, rewritten, and approved together with the academic supervisor.",
     dateLocale: "en-GB",
@@ -584,7 +584,7 @@ export async function buildDocx(project: ThesisProject, deps: BuildDeps = {}, op
   });
 
   const doc = new Document({
-    creator: "SkripsiAI",
+    creator: "Skripsa",
     title,
     description: `${labels.description} — ${template.campus_name}. ${labels.generatedLine} · ${new Date().toLocaleDateString(labels.dateLocale)}. ${labels.disclaimer}`,
     features: { updateFields: true },

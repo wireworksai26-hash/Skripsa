@@ -1,6 +1,6 @@
 {
-  "name": "SkripsiAI — Generator Skripsi Multi-Agent",
-  "short_name": "SkripsiAI",
+  "name": "Skripsa — Generator Skripsi Multi-Agent",
+  "short_name": "Skripsa",
   "description": "Platform penulisan skripsi cerdas: formulir tanpa prompting, rujukan ilmiah nyata, verifikasi sitasi, dan review multi-agent.",
   "id": "/",
   "start_url": "/",

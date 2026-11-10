@@ -27,7 +27,7 @@ def export_thesis_docx(thesis_dict: dict) -> str:
             "fallback_title": "Thesis Draft",
             "chapter": "CHAPTER",
             "references": "REFERENCES",
-            "disclaimer": "Draft produced with SkripsiAI multi-agent assistance — an initial draft for supervision; "
+            "disclaimer": "Draft produced with Skripsa multi-agent assistance — an initial draft for supervision; "
             "it must be evaluated, rewritten, and approved together with the academic supervisor.",
         }
         if language == "en"
@@ -35,7 +35,7 @@ def export_thesis_docx(thesis_dict: dict) -> str:
             "fallback_title": "Draf Skripsi",
             "chapter": "BAB",
             "references": "DAFTAR PUSTAKA",
-            "disclaimer": "Draf dihasilkan dengan asistensi multi-agent SkripsiAI — "
+            "disclaimer": "Draf dihasilkan dengan asistensi multi-agent Skripsa — "
             "draf awal bahan bimbingan, wajib dievaluasi dan ditulis ulang bersama Dosen Pembimbing.",
         }
     )

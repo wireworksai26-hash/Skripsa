@@ -187,7 +187,7 @@ async def web_check(thesis: Thesis, selected: list[Citation], client: httpx.Asyn
     sel_titles = {re.sub(r"\W+", " ", (c.title or "").lower()).strip() for c in selected}
     sem = asyncio.Semaphore(4)
     own = client is None
-    client = client or httpx.AsyncClient(timeout=20, headers={"User-Agent": "SkripsiAI/1.0"})
+    client = client or httpx.AsyncClient(timeout=20, headers={"User-Agent": "Skripsa/1.0"})
 
     async def run(job):
         async with sem:

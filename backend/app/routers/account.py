@@ -146,8 +146,8 @@ async def forgot_password(payload: ForgotIn, request: Request, db: Session = Dep
         link = f"{settings.app_url.rstrip('/')}/reset?token={token}"
         await mailer.send_mail(
             user.email,
-            "Atur ulang password SkripsiAI",
-            f"Halo {user.full_name},\n\nAda permintaan mengatur ulang password akun SkripsiAI Anda. Buka tautan ini dalam {RESET_TTL_MIN} menit:\n{link}\n\nAbaikan email ini bila Anda tidak memintanya.",
+            "Atur ulang password Skripsa",
+            f"Halo {user.full_name},\n\nAda permintaan mengatur ulang password akun Skripsa Anda. Buka tautan ini dalam {RESET_TTL_MIN} menit:\n{link}\n\nAbaikan email ini bila Anda tidak memintanya.",
         )
     return {"ok": True}  # selalu sama agar email terdaftar tidak bisa ditebak
 
@@ -172,7 +172,7 @@ async def send_verification(user: User = Depends(auth_required)):
         raise HTTPException(503, "Verifikasi email belum dikonfigurasi di server ini.")
     token = create_purpose_token(user.user_id, "verify", binder_of(user.email), VERIFY_TTL_MIN)
     link = f"{settings.app_url.rstrip('/')}/verifikasi?token={token}"
-    sent = await mailer.send_mail(user.email, "Verifikasi email SkripsiAI", f"Halo {user.full_name},\n\nVerifikasi email Anda dengan membuka tautan ini:\n{link}\n")
+    sent = await mailer.send_mail(user.email, "Verifikasi email Skripsa", f"Halo {user.full_name},\n\nVerifikasi email Anda dengan membuka tautan ini:\n{link}\n")
     if not sent:
         raise HTTPException(503, "Email tidak dapat dikirim saat ini. Coba lagi nanti.")
     return {"ok": True}

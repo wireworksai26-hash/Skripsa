@@ -75,7 +75,7 @@ export function AppHeader() {
             <span className="grid h-8 w-8 place-items-center rounded-btn bg-brand text-white">
               <BookMarked size={17} />
             </span>
-            <span className="text-[17px] tracking-tight">SkripsiAI</span>
+            <span className="text-[17px] tracking-tight">Skripsa</span>
           </Link>
 
           <div className="ml-2 hidden min-w-0 lg:block">

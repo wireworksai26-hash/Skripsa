@@ -22,7 +22,7 @@ Hasil akhir: dua service di satu project Railway (frontend dan backend) plus sat
 
 1. **+ New** > **GitHub Repo** > `Skripsa`. Beri nama `api`.
 2. **Settings** > **Source** > **Root Directory**: `/backend`. Railway otomatis memakai `backend/railway.json` (Dockerfile, health check `/healthz`).
-3. **Settings** > **Networking** > **Generate Domain**. Catat, misalnya `https://skripsiai-api.up.railway.app`.
+3. **Settings** > **Networking** > **Generate Domain**. Catat, misalnya `https://skripsa-api.up.railway.app`.
 4. **Variables** (isi semuanya, `...` adalah nilai Anda):
 
 | Variabel | Nilai |

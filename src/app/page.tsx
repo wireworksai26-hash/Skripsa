@@ -74,7 +74,7 @@ function SiteHeader() {
           <span className="grid h-8 w-8 place-items-center rounded-btn bg-brand text-white">
             <FileText size={17} />
           </span>
-          <span className="text-[17px] font-bold tracking-tight">SkripsiAI</span>
+          <span className="text-[17px] font-bold tracking-tight">Skripsa</span>
         </a>
         <nav className="ml-8 hidden items-center gap-1 lg:flex">
           {NAV_ANCHORS.map((a) => (
@@ -337,7 +337,7 @@ function SiteFooter() {
             <span className="grid h-8 w-8 place-items-center rounded-btn bg-brand text-white">
               <FileText size={17} />
             </span>
-            <span className="text-[17px] font-bold tracking-tight">SkripsiAI</span>
+            <span className="text-[17px] font-bold tracking-tight">Skripsa</span>
           </div>
           <p className="t-serif-lede mt-3 max-w-xs text-[14px] text-graphite">
             Draf skripsi bersitasi terverifikasi, disusun berurutan oleh tim agen
@@ -364,7 +364,7 @@ function SiteFooter() {
       </div>
       <div className="border-t border-hairline">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-5 text-[12px] text-black/45">
-          <span>© 2026 SkripsiAI · Multi-Agent Thesis Drafting PWA</span>
+          <span>© 2026 Skripsa · Multi-Agent Thesis Drafting PWA</span>
           <span>OpenAlex · Crossref · DOAJ · ERIC · arXiv</span>
         </div>
       </div>

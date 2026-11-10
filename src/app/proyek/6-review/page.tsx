@@ -187,7 +187,7 @@ export default function ReviewPage() {
             dan dikonsultasikan bersama Dosen Pembimbing.
           </p>
           <p className="mt-3 text-[12px] text-white/60">
-            Draf tersimpan di akun Anda pada server SkripsiAI. Isi draf dikirim ke penyedia LLM yang
+            Draf tersimpan di akun Anda pada server Skripsa. Isi draf dikirim ke penyedia LLM yang
             dikonfigurasi di backend untuk proses penulisan.
           </p>
         </AccentCard>

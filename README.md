@@ -1,4 +1,4 @@
-# SkripsiAI
+# Skripsa
 
 Generator skripsi multi-agent berbentuk PWA. Mahasiswa mengisi satu formulir, memilih judul, menarik rujukan jurnal nyata, lalu agen menulis draf per subbab dengan sitasi yang bisa diperiksa. Hasilnya diekspor ke `.docx` sesuai format kampus.
 

@@ -1,6 +1,6 @@
 # Rencana Pengujian Beta Dua Jurusan (Fase 4)
 
-Tujuan: memastikan alur SkripsiAI bekerja untuk dua kelompok pengguna di PRD, yaitu **Informatika** (Persona A) dan
+Tujuan: memastikan alur Skripsa bekerja untuk dua kelompok pengguna di PRD, yaitu **Informatika** (Persona A) dan
 **Pendidikan Bahasa Inggris** (Persona B), serta pengguna awam (Persona C), sebelum dibuka ke penguji sungguhan.
 
 ## 1. Pemeriksaan otomatis (jalankan dulu)

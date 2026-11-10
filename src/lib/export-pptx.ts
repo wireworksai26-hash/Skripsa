@@ -28,7 +28,7 @@ export async function buildPptx(project: ThesisProject, plan: SlidePlanItem[], p
   const pptx = new PptxGenJS();
   pptx.layout = "LAYOUT_WIDE";
   pptx.title = title;
-  pptx.author = profile?.fullName ?? "SkripsiAI";
+  pptx.author = profile?.fullName ?? "Skripsa";
 
   let n = 0;
   const base = (heading: string) => {

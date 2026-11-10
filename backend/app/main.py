@@ -40,7 +40,7 @@ async def lifespan(app: FastAPI):
 
 production = settings.environment.strip().lower() == "production"
 app = FastAPI(
-    title="SkripsiAI API",
+    title="Skripsa API",
     description=(
         "Backend multi-agent generator skripsi: Prompt Orchestrator, Campus Template Engine, "
         "Integrator API ilmiah publik (OpenAlex/Crossref/DOAJ/ERIC), multi-agent pipeline "
@@ -112,7 +112,7 @@ app.include_router(research_data.router)
 
 async def _probe_once(name: str, url: str, params: dict | None = None, headers: dict | None = None) -> tuple[str, int | str]:
     try:
-        async with httpx.AsyncClient(timeout=10, headers={"User-Agent": "SkripsiAI/1.0"}) as client:
+        async with httpx.AsyncClient(timeout=10, headers={"User-Agent": "Skripsa/1.0"}) as client:
             res = await client.get(url, params=params, headers=headers)
             return name, res.status_code
     except httpx.HTTPError:

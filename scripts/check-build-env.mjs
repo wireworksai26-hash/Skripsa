@@ -6,13 +6,13 @@ const bad = !api || /localhost|127\.0\.0\.1/.test(api) || !/^https:\/\//.test(ap
 
 if (onRailway && bad) {
   console.error(
-    "\n[SkripsiAI] NEXT_PUBLIC_API_URL belum benar untuk produksi.\n" +
+    "\n[Skripsa] NEXT_PUBLIC_API_URL belum benar untuk produksi.\n" +
       `  Nilai sekarang: "${api || "(kosong)"}"\n` +
-      "  Isi dengan alamat HTTPS service backend, mis. https://skripsiai-api.up.railway.app,\n" +
+      "  Isi dengan alamat HTTPS service backend, mis. https://skripsa-api.up.railway.app,\n" +
       "  lalu deploy ulang frontend (variabel NEXT_PUBLIC_* dibaca saat build, bukan saat jalan).\n"
   );
   process.exit(1);
 }
 if (onRailway && !process.env.NEXT_PUBLIC_ONESIGNAL_APP_ID) {
-  console.warn("[SkripsiAI] NEXT_PUBLIC_ONESIGNAL_APP_ID kosong: tombol notifikasi akan nonaktif (tidak menggagalkan build).");
+  console.warn("[Skripsa] NEXT_PUBLIC_ONESIGNAL_APP_ID kosong: tombol notifikasi akan nonaktif (tidak menggagalkan build).");
 }
