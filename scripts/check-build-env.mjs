@@ -1,16 +1,10 @@
-// Dijalankan sebelum `next build`. Variabel NEXT_PUBLIC_* ikut tertanam saat build, jadi salah isi baru ketahuan setelah deploy.
-// Di Railway (RAILWAY_ENVIRONMENT terisi) alamat API yang kosong atau localhost menggagalkan build dengan pesan yang jelas.
+// Dijalankan sebelum `next build`. NEXT_PUBLIC_* ikut tertanam saat build, jadi salah isi baru ketahuan setelah deploy.
+// Mode satu service memakai alamat API relatif (/api). Alamat absolut hanya sah bila backend sengaja dipisah (HTTPS).
 const onRailway = Boolean(process.env.RAILWAY_ENVIRONMENT || process.env.RAILWAY_PROJECT_ID);
-const api = (process.env.NEXT_PUBLIC_API_URL || "").trim();
-const bad = !api || /localhost|127\.0\.0\.1/.test(api) || !/^https:\/\//.test(api);
+const api = process.env.NEXT_PUBLIC_API_URL;
 
-if (onRailway && bad) {
-  console.error(
-    "\n[Skripsa] NEXT_PUBLIC_API_URL belum benar untuk produksi.\n" +
-      `  Nilai sekarang: "${api || "(kosong)"}"\n` +
-      "  Isi dengan alamat HTTPS service backend, mis. https://skripsa-api.up.railway.app,\n" +
-      "  lalu deploy ulang frontend (variabel NEXT_PUBLIC_* dibaca saat build, bukan saat jalan).\n"
-  );
+if (onRailway && api !== undefined && api.startsWith("http") && !/^https:\/\//.test(api)) {
+  console.error(`\n[Skripsa] NEXT_PUBLIC_API_URL="${api}" harus HTTPS (atau /api untuk mode satu service).\n`);
   process.exit(1);
 }
 if (onRailway && !process.env.NEXT_PUBLIC_ONESIGNAL_APP_ID) {

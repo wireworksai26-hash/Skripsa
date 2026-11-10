@@ -108,9 +108,9 @@ Jangan menjalankan `next build` biasa saat `next dev` aktif karena akan menimpa 
 
 ## Deploy
 
-Panduan lengkap ke Railway (frontend, backend, Postgres, domain, dan OneSignal): [`docs/DEPLOY-RAILWAY.md`](docs/DEPLOY-RAILWAY.md).
+Panduan lengkap ke Railway (satu service all-in-one + Postgres, domain, dan OneSignal): [`docs/DEPLOY-RAILWAY.md`](docs/DEPLOY-RAILWAY.md).
 
-Ringkasnya: backend memakai `backend/Dockerfile`, frontend memakai Nixpacks (`railway.json`). Di produksi wajib `SKRIPSI_ENVIRONMENT=production`, `SKRIPSI_SECRET_KEY` acak, dan `SKRIPSI_DATABASE_URL` ke Postgres. Variabel `NEXT_PUBLIC_*` dibaca saat build. Push notification dan service worker membutuhkan HTTPS (localhost dikecualikan).
+Ringkasnya: `Dockerfile` di akar menjalankan frontend dan backend dalam satu container (Next.js meneruskan `/api/*` ke FastAPI, tanpa CORS). Di produksi wajib `SKRIPSI_ENVIRONMENT=production`, `SKRIPSI_SECRET_KEY` acak, dan `SKRIPSI_DATABASE_URL` ke Postgres. `NEXT_PUBLIC_ONESIGNAL_APP_ID` dibaca saat build. Push notification dan service worker membutuhkan HTTPS (localhost dikecualikan).
 
 ## Dokumentasi
 
