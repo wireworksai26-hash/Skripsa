@@ -122,6 +122,11 @@ export default function MasukPage() {
                 autoComplete={register ? "new-password" : "current-password"}
               />
               {register && <FieldHint>Minimal 8 karakter.</FieldHint>}
+              {!register && (
+                <Link href="/lupa" className="mt-1.5 inline-block text-[12.5px] font-medium text-brand underline underline-offset-2">
+                  Lupa password?
+                </Link>
+              )}
             </div>
 
             {error && <p className="text-[13px] text-vermillion">{error}</p>}

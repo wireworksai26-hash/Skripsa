@@ -6,6 +6,7 @@ import { Card } from "@/components/ui/card";
 import { FieldHint, Input, Label } from "@/components/ui/field";
 import { Pill } from "@/components/ui/pill";
 import { ThemeToggle } from "@/components/pwa/theme-toggle";
+import { AccountCard } from "@/components/pwa/account-card";
 import { ActivityCard } from "@/components/pwa/activity-card";
 import { NotifyCard } from "@/components/pwa/notify-card";
 import { coverInputOf, DEFAULT_COVER_OPTIONS, missingCoverFields, normalizeLogo, resolveCover } from "@/lib/cover";
@@ -164,6 +165,7 @@ export default function ProfilPage() {
           <ThemeToggle />
         </Card>
         <ActivityCard />
+        <AccountCard />
         <NotifyCard prefs={form.notifyPrefs} onChange={(p) => set("notifyPrefs", p)} />
       </div>
 

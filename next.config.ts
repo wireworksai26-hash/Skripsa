@@ -15,7 +15,7 @@ const csp = [
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob: https://cdn.onesignal.com https://*.onesignal.com",
   "font-src 'self' data:",
-  `connect-src 'self' ${apiOrigin} ws: wss: https://api.onesignal.com https://onesignal.com https://*.onesignal.com`,
+  `connect-src 'self' ${apiOrigin} ws: wss: https://kroki.io https://api.onesignal.com https://onesignal.com https://*.onesignal.com`,
   "worker-src 'self' blob:",
   "media-src 'self' blob:",
   "frame-src 'none'",

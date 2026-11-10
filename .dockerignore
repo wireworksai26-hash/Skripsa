@@ -1,0 +1,12 @@
+node_modules
+.next
+.next-test
+.git
+backend
+result
+reference
+.opencode
+*.log
+.env
+.env.*
+!.env.example

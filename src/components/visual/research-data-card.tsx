@@ -8,6 +8,7 @@ import { Pill } from "@/components/ui/pill";
 import { api } from "@/lib/api";
 import { useProject } from "@/lib/store";
 import type { ResearchDataItem } from "@/lib/types";
+import { StatsTestPanel } from "@/components/visual/stats-test-panel";
 import { Database, FileUp, Plus, Sparkles, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
@@ -160,6 +161,16 @@ export function ResearchDataCard() {
                   {d.analysis.notes && <li className="text-black/50">Catatan agen: {d.analysis.notes}</li>}
                 </ul>
               )}
+              {d.analysis.tests && d.analysis.tests.length > 0 && (
+                <ul className="mt-2 space-y-1 text-[12.5px] text-black/65">
+                  {d.analysis.tests.map((t, i) => (
+                    <li key={i}>
+                      <strong>{t.kind}</strong>: {t.report}
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {d.kind === "table" && <StatsTestPanel dataId={d.id} onDone={refresh} />}
               <div className="mt-3 flex flex-wrap gap-2">
                 <Button size="sm" onClick={() => analyze(d)} loading={busy === d.id} disabled={busy !== null}>
                   {busy !== d.id && <Sparkles size={14} />} {d.analyzed ? "Olah ulang" : "Olah dengan agen"}

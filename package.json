@@ -6,13 +6,15 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "prebuild": "node scripts/check-build-env.mjs"
   },
   "dependencies": {
     "docx": "^9.15.2",
     "lucide-react": "^1.69.0",
     "next": "15.5.29",
     "pdfjs-dist": "^6.5.438",
+    "pptxgenjs": "^3.12.0",
     "react": "19.1.0",
     "react-dom": "19.1.0",
     "zustand": "^5.0.16"
@@ -27,5 +29,8 @@
     "eslint-config-next": "15.5.29",
     "tailwindcss": "^4",
     "typescript": "^5"
+  },
+  "engines": {
+    "node": ">=20"
   }
 }

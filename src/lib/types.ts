@@ -196,6 +196,7 @@ export interface Profile {
   city: string;
   logoData: string | null;
   notifyPrefs: NotifyPrefs;
+  emailVerified?: boolean;
 }
 
 export interface NotifyPrefs {
@@ -217,6 +218,22 @@ export interface CoverOptions {
   originality: boolean;
 }
 
+export type StatTestKind = "correlation" | "regression" | "chi_square" | "normality" | "reliability";
+
+export interface DataColumn {
+  name: string;
+  numeric: boolean;
+  n: number;
+  distinct: number;
+}
+
+export interface StatTestResult {
+  kind: StatTestKind;
+  report: string;
+  interpretation: string;
+  significant: boolean;
+}
+
 export interface ResearchDataItem {
   id: string;
   title: string;
@@ -229,6 +246,7 @@ export interface ResearchDataItem {
     themes?: Array<{ name: string; description: string; excerpts: string[] }>;
     notes?: string;
     tables?: Array<{ title: string }>;
+    tests?: Array<{ kind: StatTestKind; report: string; interpretation: string }>;
   };
 }
 
@@ -264,6 +282,28 @@ export interface WebCheckReport {
     in_your_references: boolean;
   }>;
   note: string;
+}
+
+export interface CitationAudit {
+  style: string;
+  references: number;
+  in_text_citations: number;
+  unknown: Array<{ section: string; title: string; own_writing: boolean; text: string }>;
+  year_mismatch: Array<{ section: string; title: string; text: string; listed_years: number[] }>;
+  uncited: Array<{ title: string; authors: string[]; year: number }>;
+  numeric_out_of_range: Array<{ section: string; text: string; number: number }>;
+  duplicates: Array<{ title: string; same_as: string }>;
+  weak: { no_authors: string[]; no_year: string[]; no_doi: number };
+  style_issues: string[];
+  ok: boolean;
+}
+
+export interface SlidePlanItem {
+  key: string;
+  title: string;
+  chapter: string;
+  bullets: string[];
+  notes: string;
 }
 
 export interface FrontMatter {

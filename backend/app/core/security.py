@@ -63,3 +63,30 @@ def verify_token(token: str) -> str | None:
     if not isinstance(exp, (int, float)) or exp < time.time():
         return None
     return uid if isinstance(uid, str) else None
+
+
+def create_purpose_token(user_id: str, purpose: str, binder: str, ttl_minutes: int) -> str:
+    """Token sekali pakai untuk tujuan tertentu. `binder` (mis. potongan hash password) membuatnya gugur saat nilai itu berubah."""
+    payload = json.dumps({"sub": user_id, "pur": purpose, "bind": binder, "exp": int(time.time()) + ttl_minutes * 60}).encode()
+    body = base64.urlsafe_b64encode(payload)
+    return f"{body.decode()}.{_sig(body)}"
+
+
+def verify_purpose_token(token: str, purpose: str) -> tuple[str, str] | None:
+    if not isinstance(token, str) or len(token) > MAX_TOKEN_CHARS:
+        return None
+    try:
+        body, sig = token.rsplit(".", 1)
+        payload = json.loads(base64.urlsafe_b64decode(body.encode()))
+    except (ValueError, TypeError, binascii.Error, json.JSONDecodeError):
+        return None
+    if not isinstance(payload, dict) or not hmac.compare_digest(sig, _sig(body.encode())):
+        return None
+    if payload.get("pur") != purpose or not isinstance(payload.get("exp"), (int, float)) or payload["exp"] < time.time():
+        return None
+    sub, bind = payload.get("sub"), payload.get("bind")
+    return (sub, bind) if isinstance(sub, str) and isinstance(bind, str) else None
+
+
+def binder_of(value: str) -> str:
+    return hashlib.sha256(value.encode()).hexdigest()[:16]

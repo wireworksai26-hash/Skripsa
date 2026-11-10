@@ -55,14 +55,39 @@ class Settings(BaseSettings):
     app_url: str = "http://localhost:3000"  # tujuan saat notifikasi diketuk
 
     @model_validator(mode="after")
+    def _normalize_db(self):
+        # Railway/Heroku memberi "postgres://" atau "postgresql://"; SQLAlchemy butuh nama driver (psycopg v3).
+        url = self.database_url.strip()
+        for prefix in ("postgres://", "postgresql://"):
+            if url.startswith(prefix):
+                url = "postgresql+psycopg://" + url[len(prefix):]
+        self.database_url = url
+        return self
+
+    @model_validator(mode="after")
     def _secure_secret(self):
-        if self.secret_key.strip() in _INSECURE_SECRETS or len(self.secret_key.strip()) < 32:
+        weak = self.secret_key.strip() in _INSECURE_SECRETS or len(self.secret_key.strip()) < 32
+        if weak and self.environment.strip().lower() == "production":
+            # Kunci acak sementara membuat semua sesi login hilang tiap server restart/redeploy; di produksi itu bug, bukan mode aman.
+            raise RuntimeError(
+                "SKRIPSI_SECRET_KEY wajib diisi (minimal 32 karakter acak) saat SKRIPSI_ENVIRONMENT=production. "
+                "Buat dengan: python -c \"import secrets; print(secrets.token_urlsafe(48))\""
+            )
+        if weak:
             self.secret_key = secrets.token_urlsafe(48)
             log.warning(
                 "SKRIPSI_SECRET_KEY tidak diisi dengan aman; memakai kunci acak sementara. "
                 "Isi nilai acak panjang di backend/.env agar sesi login tidak hilang saat server restart."
             )
         return self
+
+    # Email (reset password, verifikasi). Kosong = fitur email nonaktif.
+    smtp_host: str = ""
+    smtp_port: int = 587
+    smtp_user: str = ""
+    smtp_password: str = ""
+    smtp_from: str = ""
+    smtp_starttls: bool = True
 
     class Config:
         env_prefix = "SKRIPSI_"

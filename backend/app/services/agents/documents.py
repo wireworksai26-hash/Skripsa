@@ -204,3 +204,58 @@ async def evaluate_defense(thesis: Thesis, db: Session, question: str, answer: s
         }
 
     return await _ask([{"role": "system", "content": DEFENSE_SYSTEM.format(lang=_lang(thesis))}, {"role": "user", "content": user}], validate, max_tokens=2200, temperature=0.2)
+
+
+# ---------------- rencana slide sidang ----------------
+
+SLIDE_PLAN = [
+    ("background", "Latar Belakang", "1", "Background"),
+    ("problem", "Rumusan Masalah dan Tujuan", "1", "Research Questions and Objectives"),
+    ("theory", "Landasan Teori", "2", "Theoretical Framework"),
+    ("method", "Metode Penelitian", "3", "Research Method"),
+    ("results", "Hasil Penelitian", "4", "Results"),
+    ("discussion", "Pembahasan", "4", "Discussion"),
+    ("conclusion", "Simpulan dan Saran", "5", "Conclusions and Suggestions"),
+]
+
+SLIDES_SYSTEM = """Kamu membantu mahasiswa menyusun slide sidang skripsi dari NASKAH mereka.
+Aturan:
+1. Untuk SETIAP bagian yang diminta, tulis 3-5 poin singkat (maksimal 20 kata per poin) yang meringkas isi naskah bagian itu. Hanya ringkas; jangan menambah fakta, angka, nama, atau temuan yang tidak ada di naskah.
+2. Dilarang mengarang angka atau hasil. Bila naskah memuat penanda [DATA: ...], tulis poin "Data penelitian belum tersedia" pada bagian itu.
+3. "notes": 2-3 kalimat catatan pembicara untuk presentasi lisan, bersumber dari naskah.
+4. Bahasa slide: {lang}.
+Tanggapi HANYA JSON: {{"slides":[{{"key":"background","bullets":["",""],"notes":""}}]}} dengan key sesuai daftar bagian yang diminta."""
+
+
+async def generate_slide_plan(thesis: Thesis, db: Session) -> tuple[list[dict], str]:
+    en = (thesis.language or "id") == "en"
+    by_chapter: dict[str, str] = {}
+    for s in sorted(thesis.sections, key=lambda x: [int(p) if p.isdigit() else 0 for p in x.section_code.split(".")]):
+        text = " ".join((s.content_markdown or "").split())
+        if _words(text) >= 30:
+            by_chapter[s.chapter_code] = by_chapter.get(s.chapter_code, "") + f"[{s.section_code} {s.section_title}] {text[:900]}\n"
+    wanted = [(k, ti if not en else te, ch) for k, ti, ch, te in SLIDE_PLAN if by_chapter.get(ch)]
+    if not wanted:
+        raise GenerationError("Belum ada isi naskah untuk dirangkum. Tulis minimal satu bab di Langkah 4 dulu.")
+    corpus = _corpus(thesis) + " " + _norm(" ".join(f"{t.title} " + " ".join(" ".join(r) for r in (t.rows_json or [])) for t in thesis.tables))
+    user = f"Judul: {thesis.title}\nBagian yang diminta: {', '.join(k for k, _, _ in wanted)}\n\n" + "\n".join(f"== Bab {ch} ==\n{by_chapter[ch][:5000]}" for ch in dict.fromkeys(c for _, _, c in wanted))
+    keys = {k for k, _, _ in wanted}
+
+    def validate(d: dict) -> list[dict]:
+        out = {}
+        for sl in d.get("slides") or []:
+            if not isinstance(sl, dict) or sl.get("key") not in keys:
+                continue
+            bullets = [" ".join(str(b).split()) for b in (sl.get("bullets") or []) if str(b).strip()]
+            bullets = [b for b in bullets if _words(b) <= 32][:5]
+            bad = sorted({n for b in bullets for n in invented_numbers(b.replace("[DATA", ""), corpus)})
+            if bad:
+                raise ValueError(f"slide {sl['key']} memuat angka yang tidak ada di naskah: {', '.join(bad[:5])}")
+            if len(bullets) >= 2:
+                out[sl["key"]] = {"bullets": bullets, "notes": " ".join(str(sl.get("notes", "")).split())}
+        if not out:
+            raise ValueError("tidak ada slide dengan minimal 2 poin")
+        return [{"key": k, "title": title, "chapter": ch, **out[k]} for k, title, ch in wanted if k in out]
+
+    data, provider = await _ask([{"role": "system", "content": SLIDES_SYSTEM.format(lang=_lang(thesis))}, {"role": "user", "content": user}], validate, max_tokens=3000, temperature=0.2)
+    return data, provider

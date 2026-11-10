@@ -36,6 +36,7 @@ class UserOut(BaseModel):
     city: str = ""
     logo_data: str | None = None
     notify_prefs: dict | None = None
+    email_verified: bool = False
 
 
 LOGO_PREFIX = "data:image/png;base64,"

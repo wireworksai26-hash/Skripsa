@@ -242,3 +242,34 @@ def test_writing_a_section_records_words(client, auth):
     before = client.get("/activity", headers=h).json()["today"]
     client.patch(f"/theses/{tid}/sections/1.1", headers=h, json={"content_markdown": " ".join(["kata"] * 77)})
     assert client.get("/activity", headers=h).json()["today"] == before + 77
+
+
+def test_slide_plan_filters_invented_numbers_and_empty_chapters(client, auth, monkeypatch):
+    h = auth["headers"]
+    tid = _thesis(client, h, " sl")
+    _fill(tid, {"1.1": GOOD.format(n="satu"), "3.1": GOOD.format(n="tiga") + " Sampel penelitian berjumlah 120 siswa."})
+    calls = {"n": 0}
+
+    def handler(messages):
+        calls["n"] += 1
+        bad = calls["n"] == 1
+        return {"slides": [
+            {"key": "background", "bullets": ["Media digital meningkatkan keterlibatan siswa" + (" sebesar 47 persen" if bad else ""), "Belum ada kajian pada kelas dengan akses terbatas"], "notes": "Latar masalah."},
+            {"key": "method", "bullets": ["Pendekatan kuantitatif", "Sampel 120 siswa"], "notes": "Metode."},
+            {"key": "results", "bullets": ["Hasil karangan", "Tidak berdasar"], "notes": "Bab 4 tidak diminta"},
+        ]}
+
+    _fake(monkeypatch, handler)
+    r = client.post(f"/theses/{tid}/slides/plan", headers=h)
+    assert r.status_code == 200, r.text
+    assert calls["n"] == 2, "angka 47 tidak ada di naskah, percobaan pertama ditolak"
+    keys = [s["key"] for s in r.json()["slides"]]
+    assert keys == ["background", "method"], "hanya bab yang sudah ditulis; slide Bab IV tidak diminta jadi dibuang"
+    assert all(len(s["bullets"]) >= 2 for s in r.json()["slides"])
+
+
+def test_slide_plan_needs_content(client, auth):
+    h = auth["headers"]
+    tid = _thesis(client, h, " sl2")
+    r = client.post(f"/theses/{tid}/slides/plan", headers=h)
+    assert r.status_code == 503 and "Belum ada isi naskah" in r.json()["detail"]

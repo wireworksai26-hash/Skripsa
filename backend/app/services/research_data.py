@@ -148,6 +148,8 @@ def summary_for_writer(items) -> str:
     parts = []
     for it in items:
         a = it.analysis_json or {}
+        for t in a.get("tests") or []:
+            parts.append(f"UJI STATISTIK ({it.title}): {t['interpretation']}")
         if a.get("type") == "text":
             lines = [f"Tema {i}. {t['name']}: {t['description']} Kutipan: " + " | ".join(t["excerpts"]) for i, t in enumerate(a.get("themes", []), 1)]
             parts.append(f"DATA PENGGUNA ({it.title}, hasil pengodean tema):\n" + "\n".join(lines))

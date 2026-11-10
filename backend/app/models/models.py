@@ -31,6 +31,7 @@ class User(Base):
     logo_data = Column(Text, nullable=True)  # data URL PNG, maks 300 KB
     notify_prefs = Column(JSON, nullable=True)
     last_reminder_at = Column(DateTime(timezone=True), nullable=True)
+    email_verified = Column(Boolean, nullable=False, default=False, server_default="0")
     daily_goal = Column(Integer, nullable=False, default=300, server_default="300")  # target kata per hari
     created_at = Column(DateTime(timezone=True), default=utcnow)
 

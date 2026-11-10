@@ -3,10 +3,15 @@ import type {
   AgentKind,
   AgentReview,
   Activity,
+  SlidePlanItem,
+  CitationAudit,
   AiStyleReport,
   WebCheckReport,
   Brief,
   ResearchDataItem,
+  DataColumn,
+  StatTestKind,
+  StatTestResult,
   Appendix,
   ChartSpec,
   CoverOptions,
@@ -342,6 +347,7 @@ interface ServerProfile {
   city: string;
   logo_data: string | null;
   notify_prefs: Partial<NotifyPrefs> | null;
+  email_verified?: boolean;
 }
 
 const mapProfile = (u: ServerProfile): Profile => ({
@@ -353,6 +359,7 @@ const mapProfile = (u: ServerProfile): Profile => ({
   city: u.city ?? "",
   logoData: u.logo_data ?? null,
   notifyPrefs: { draft: true, review: true, reminder: true, ...(u.notify_prefs ?? {}) },
+  emailVerified: u.email_verified ?? false,
 });
 
 function mapThesis(
@@ -679,6 +686,12 @@ export const api = {
   listData: async (id: string): Promise<ResearchDataItem[]> => (await request<ServerData[]>(`/theses/${id}/data`)).map(mapData),
   addData: async (id: string, d: { title: string; kind: "table" | "text"; content: string }): Promise<ResearchDataItem> =>
     mapData(await request<ServerData>(`/theses/${id}/data`, { method: "POST", body: d })),
+  dataColumns: (id: string, dataId: string) => request<DataColumn[]>(`/theses/${id}/data/${dataId}/columns`),
+  runStatTest: async (
+    id: string,
+    dataId: string,
+    body: { kind: StatTestKind; a?: string; b?: string; y?: string; xs: string[]; items: string[]; column?: string }
+  ): Promise<StatTestResult> => (await request<{ result: StatTestResult }>(`/theses/${id}/data/${dataId}/test`, { method: "POST", body })).result,
   deleteData: (id: string, dataId: string) => request(`/theses/${id}/data/${dataId}`, { method: "DELETE" }),
   analyzeData: async (id: string, dataId: string): Promise<{ data: ResearchDataItem; provider: string }> => {
     const r = await request<{ data: ServerData; provider: string }>(`/theses/${id}/data/${dataId}/analyze`, { method: "POST", body: {} });
@@ -687,8 +700,28 @@ export const api = {
 
   updateBrief: (id: string, brief: Brief) => request(`/theses/${id}`, { method: "PATCH", body: { brief } }),
 
+  slidePlan: (id: string) => request<{ slides: SlidePlanItem[]; provider: string }>(`/theses/${id}/slides/plan`, { method: "POST", body: {} }),
+  citationAudit: (id: string) => request<CitationAudit>(`/theses/${id}/citation-audit`),
   aiStyle: (id: string) => request<AiStyleReport>(`/theses/${id}/integrity/ai-style`),
   webCheck: (id: string) => request<WebCheckReport>(`/theses/${id}/integrity/web`, { method: "POST", body: {} }),
+
+  changePassword: (current: string, next: string) => request("/auth/password", { method: "PUT", body: { current_password: current, new_password: next } }),
+  exportMyData: async (): Promise<Blob> => {
+    const session = readSession();
+    let res: Response;
+    try {
+      res = await fetch(`${API_URL}/auth/export`, { headers: session ? { Authorization: `Bearer ${session.token}` } : {} });
+    } catch {
+      throw new ApiError(`Server tidak terjangkau di ${API_URL}.`, 0);
+    }
+    if (!res.ok) throw new ApiError(`Ekspor gagal (${res.status})`, res.status);
+    return res.blob();
+  },
+  deleteAccount: (password: string) => request("/auth/account", { method: "DELETE", body: { password } }),
+  forgotPassword: (email: string) => request("/auth/forgot", { body: { email }, auth: false }),
+  resetPassword: (token: string, password: string) => request("/auth/reset", { body: { token, password }, auth: false }),
+  sendVerification: () => request("/auth/send-verification", { method: "POST", body: {} }),
+  verifyEmail: (token: string) => request("/auth/verify", { body: { token }, auth: false }),
 
   getProfile: async (): Promise<Profile> => mapProfile(await request<ServerProfile>("/auth/me")),
 

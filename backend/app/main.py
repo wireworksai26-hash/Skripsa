@@ -10,7 +10,7 @@ from fastapi.responses import JSONResponse
 
 from app.core.config import settings
 from app.core.db import init_db
-from app.routers import auth, charts, export, extras, research_data, share, structure, generate, imports, revise, visuals, pdf, rag, references, review, stats, templates, theses
+from app.routers import auth, charts, export, account, extras, research_data, share, structure, generate, imports, revise, visuals, pdf, rag, references, review, stats, templates, theses
 from app.services.llm import LLMUnavailable, is_configured as is_llm_configured, status as llm_status
 from app.services.scientific_api import unpaywall_enabled
 from app.services.vectorestore import FAISS_AVAILABLE
@@ -89,6 +89,7 @@ async def llm_unavailable_handler(request: Request, exc: LLMUnavailable):
 
 
 app.include_router(auth.router)
+app.include_router(account.router)
 app.include_router(theses.router)
 app.include_router(references.router)
 app.include_router(generate.router)
@@ -138,6 +139,12 @@ async def _probe_scientific_apis() -> dict:
             )
         )
     return dict(await asyncio.gather(*probes))
+
+
+@app.get("/healthz", tags=["meta"], include_in_schema=False)
+def healthz():
+    """Cek hidup ringan untuk platform hosting (tanpa memanggil API eksternal)."""
+    return {"status": "ok"}
 
 
 @app.get("/health", tags=["meta"])

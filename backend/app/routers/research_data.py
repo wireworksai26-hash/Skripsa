@@ -7,6 +7,7 @@ from app.core.deps import owned_thesis
 from app.models.models import ResearchData, Thesis, ThesisTable
 from app.routers.stats import table_out
 from app.services import research_data as rd
+from app.services import stats_adv
 from app.services.agents.documents import GenerationError
 
 router = APIRouter(prefix="/theses", tags=["research-data"])
@@ -27,13 +28,16 @@ def _out(d: ResearchData) -> dict:
         "title": d.title,
         "kind": d.kind,
         "content": d.content,
-        "analyzed": bool(a),
+        "analyzed": bool(a.get("type")),
         "analysis": {k: v for k, v in a.items() if k != "table_ids"},
     }
 
 
 def _drop_tables(db: Session, thesis: Thesis, d: ResearchData) -> None:
-    ids = set((d.analysis_json or {}).get("table_ids") or [])
+    a = d.analysis_json or {}
+    ids = set(a.get("table_ids") or [])
+    for t in a.get("tests") or []:
+        ids.update(t.get("table_ids") or [])
     for t in list(thesis.tables):
         if t.table_id in ids:
             db.delete(t)
@@ -108,3 +112,89 @@ async def analyze_data(data_id: str, thesis: Thesis = Depends(owned_thesis), db:
     db.commit()
     db.refresh(thesis)
     return {"data": _out(d), "tables": [table_out(t) for t in thesis.tables if t.table_id in ids], "provider": provider}
+
+
+class TestIn(BaseModel):
+    kind: str = Field(pattern=r"^(correlation|regression|chi_square|normality|reliability)$")
+    a: str | None = Field(default=None, max_length=100)
+    b: str | None = Field(default=None, max_length=100)
+    y: str | None = Field(default=None, max_length=100)
+    xs: list[str] = Field(default_factory=list, max_length=12)
+    items: list[str] = Field(default_factory=list, max_length=60)
+    column: str | None = Field(default=None, max_length=100)
+    alpha: float = Field(default=0.05, gt=0, lt=0.5)
+
+
+def _columns(d: ResearchData) -> dict[str, list]:
+    try:
+        cols, rows = rd.parse_table(d.content)
+    except ValueError as exc:
+        raise HTTPException(422, str(exc))
+    return {c: [r[i] for r in rows] for i, c in enumerate(cols)}
+
+
+@router.get("/{thesis_id}/data/{data_id}/columns")
+def data_columns(data_id: str, thesis: Thesis = Depends(owned_thesis), db: Session = Depends(get_db)):
+    """Nama kolom dan jenisnya (angka/kategori) untuk memilih variabel uji."""
+    d = _item(thesis, data_id, db)
+    if d.kind != "table":
+        raise HTTPException(422, "Uji statistik hanya untuk data berjenis tabel")
+    cols = _columns(d)
+    out = []
+    for name, vals in cols.items():
+        filled = [v for v in vals if str(v).strip()]
+        numeric = bool(filled) and all(rd._number(v) is not None for v in filled)
+        out.append({"name": name, "numeric": numeric, "n": len(filled), "distinct": len(set(filled))})
+    return out
+
+
+@router.post("/{thesis_id}/data/{data_id}/test")
+def run_test(data_id: str, payload: TestIn, thesis: Thesis = Depends(owned_thesis), db: Session = Depends(get_db)):
+    d = _item(thesis, data_id, db)
+    if d.kind != "table":
+        raise HTTPException(422, "Uji statistik hanya untuk data berjenis tabel")
+    raw = _columns(d)
+    params = payload.model_dump()
+    needs_numeric = {"correlation": [params["a"], params["b"]], "regression": [params["y"], *params["xs"]], "normality": [params["column"]], "reliability": params["items"]}.get(payload.kind, [])
+    cols: dict[str, list] = {}
+    for name, vals in raw.items():
+        if name in [c for c in needs_numeric if c]:
+            nums = [rd._number(v) if str(v).strip() else None for v in vals]
+            if any(n is None and str(v).strip() for n, v in zip(nums, vals)):
+                raise HTTPException(422, f"Kolom '{name}' memuat nilai non-angka; uji ini membutuhkan angka")
+            cols[name] = nums
+        else:
+            cols[name] = vals
+    try:
+        result = stats_adv.run(payload.kind, cols, params, payload.alpha, thesis.language or "id")
+    except (ValueError, KeyError) as exc:
+        raise HTTPException(422, str(exc) if isinstance(exc, ValueError) else "Pilih variabel untuk uji ini")
+    ids = []
+    for t in result["tables"]:
+        row = ThesisTable(thesis_id=thesis.thesis_id, title=t["title"][:255], caption=t["title"], columns_json=t["columns"], rows_json=t["rows"], note=t.get("note", ""), chapter_code="4")
+        db.add(row)
+        db.flush()
+        ids.append(row.table_id)
+    a = dict(d.analysis_json or {})
+    a.setdefault("tests", [])
+    a["tests"] = [*a["tests"], {"kind": result["kind"], "report": result["report"], "interpretation": result["interpretation"], "significant": result["significant"], "table_ids": ids, "label": payload.kind}]
+    d.analysis_json = a
+    db.commit()
+    db.refresh(thesis)
+    return {"data": _out(d), "result": {k: v for k, v in result.items() if k != "tables"}, "tables": [table_out(t) for t in thesis.tables if t.table_id in ids]}
+
+
+@router.delete("/{thesis_id}/data/{data_id}/tests/{index}", status_code=204)
+def delete_test(data_id: str, index: int, thesis: Thesis = Depends(owned_thesis), db: Session = Depends(get_db)):
+    d = _item(thesis, data_id, db)
+    a = dict(d.analysis_json or {})
+    tests = list(a.get("tests") or [])
+    if not 0 <= index < len(tests):
+        raise HTTPException(404, "Uji tidak ditemukan")
+    gone = tests.pop(index)
+    for t in list(thesis.tables):
+        if t.table_id in set(gone.get("table_ids") or []):
+            db.delete(t)
+    a["tests"] = tests
+    d.analysis_json = a
+    db.commit()

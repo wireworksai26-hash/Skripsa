@@ -12,6 +12,9 @@ Generator skripsi multi-agent berbentuk PWA. Mahasiswa mengisi satu formulir, me
 - **Dua bahasa naskah**: Indonesia dan Inggris, lengkap dengan judul bab dan subbab.
 - **Data penelitian sendiri untuk Bab IV**: angka diolah deterministik, teks wawancara/observasi dikodekan agen menjadi tema dengan kutipan yang diverifikasi persis.
 - **Tabel, grafik, dan diagram** per bab, termasuk saran AI menurut jenis penelitian.
+- **Uji statistik** langsung dari data Anda (numpy/scipy, bukan LLM): korelasi, regresi sederhana/berganda, chi-square, normalitas (Shapiro-Wilk), dan reliabilitas (Cronbach's alpha), lengkap dengan kalimat pelaporan dan tabel Bab IV.
+- **Slide sidang (.pptx)** dari naskah, **pemeriksa konsistensi sitasi**, dan **komentar pembimbing yang bisa diterapkan sebagai revisi**.
+- **Akun**: ganti password, lupa password dan verifikasi email (butuh SMTP), ekspor semua data, dan hapus akun.
 - **Panel review kritis**: Guardrail deterministik (duplikasi, kelengkapan, rujukan, kejujuran data) dan Advisor berbasis rubrik dengan batas skor. Plus simulasi pertanyaan sidang dan latihan menjawab.
 - **Halaman depan lengkap**: sampul dengan logo, halaman judul, persetujuan, pernyataan keaslian, abstrak ID/EN, kata pengantar, daftar isi/tabel/gambar/grafik, dan lampiran instrumen.
 - **Kolaborasi**: tautan baca-saja untuk dosen pembimbing dengan komentar per subbab.
@@ -81,6 +84,7 @@ Semua rahasia hanya di berkas env yang tidak di-commit (`backend/.env`, `.env.lo
 | `SKRIPSI_CORE_API_KEY`, `SKRIPSI_SEMANTIC_SCHOLAR_API_KEY` | Opsional, menambah sumber dan kuota |
 | `SKRIPSI_POLITE_EMAIL` | Email nyata untuk Crossref/Unpaywall |
 | `SKRIPSI_ONESIGNAL_APP_ID`, `SKRIPSI_ONESIGNAL_API_KEY`, `SKRIPSI_APP_URL` | Push notification (opsional) |
+| `SKRIPSI_SMTP_HOST`, `SKRIPSI_SMTP_PORT`, `SKRIPSI_SMTP_USER`, `SKRIPSI_SMTP_PASSWORD`, `SKRIPSI_SMTP_FROM` | Email untuk lupa password dan verifikasi (opsional) |
 | `NEXT_PUBLIC_API_URL` | Alamat backend untuk frontend |
 | `NEXT_PUBLIC_ONESIGNAL_APP_ID` | App ID OneSignal untuk frontend (opsional) |
 
@@ -104,9 +108,9 @@ Jangan menjalankan `next build` biasa saat `next dev` aktif karena akan menimpa 
 
 ## Deploy
 
-- Frontend dapat dideploy ke Vercel atau host Node lain; set `NEXT_PUBLIC_API_URL` ke alamat backend.
-- Backend dapat dijalankan dengan `uvicorn` di belakang HTTPS. Atur `SKRIPSI_CORS_ORIGINS` ke domain frontend, `SKRIPSI_SECRET_KEY` yang kuat, dan `SKRIPSI_DATABASE_URL` bila memakai Postgres.
-- Push notification dan service worker membutuhkan HTTPS di produksi (localhost dikecualikan).
+Panduan lengkap ke Railway (frontend, backend, Postgres, domain, dan OneSignal): [`docs/DEPLOY-RAILWAY.md`](docs/DEPLOY-RAILWAY.md).
+
+Ringkasnya: backend memakai `backend/Dockerfile`, frontend memakai Nixpacks (`railway.json`). Di produksi wajib `SKRIPSI_ENVIRONMENT=production`, `SKRIPSI_SECRET_KEY` acak, dan `SKRIPSI_DATABASE_URL` ke Postgres. Variabel `NEXT_PUBLIC_*` dibaca saat build. Push notification dan service worker membutuhkan HTTPS (localhost dikecualikan).
 
 ## Dokumentasi
 

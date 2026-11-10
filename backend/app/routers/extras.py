@@ -9,7 +9,7 @@ from app.core.deps import auth_required, owned_thesis
 from app.core.ratelimit import limit_user
 from app.models.models import Citation, SectionVersion, ShareComment, Thesis, User
 from app.core.ratelimit import limit_user
-from app.services import insights, integrity, refs_io
+from app.services import citation_audit, insights, integrity, refs_io
 from app.services.agents import documents
 from app.services.agents.documents import GenerationError
 import secrets
@@ -159,6 +159,21 @@ async def defense_evaluate(payload: DefenseIn, thesis: Thesis = Depends(owned_th
 @router.get("/{thesis_id}/similarity")
 def similarity(thesis: Thesis = Depends(owned_thesis), db: Session = Depends(get_db)):
     return insights.similarity_report(thesis, db)
+
+
+@router.post("/{thesis_id}/slides/plan")
+async def slides_plan(thesis: Thesis = Depends(owned_thesis), db: Session = Depends(get_db)):
+    limit_user(thesis.user_id, "slides-plan", 6, 600)
+    try:
+        slides, provider = await documents.generate_slide_plan(thesis, db)
+    except GenerationError as exc:
+        raise _gen_error(exc)
+    return {"slides": slides, "provider": provider}
+
+
+@router.get("/{thesis_id}/citation-audit")
+def citation_audit_report(thesis: Thesis = Depends(owned_thesis), db: Session = Depends(get_db)):
+    return citation_audit.audit(thesis, db)
 
 
 @router.get("/{thesis_id}/integrity/ai-style")
