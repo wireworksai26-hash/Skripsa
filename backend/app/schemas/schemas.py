@@ -88,6 +88,16 @@ class ImportedSection(BaseModel):
     content: str = Field(min_length=1, max_length=80000)
 
 
+class BriefIn(BaseModel):
+    """Kerangka penelitian yang sudah ditemukan peneliti (mode lanjutan). Semua bagian opsional."""
+
+    topic: str = Field(default="", max_length=1500)
+    phenomenon: str = Field(default="", max_length=1500)
+    problem: str = Field(default="", max_length=1500)
+    theory: str = Field(default="", max_length=1500)
+    method: str = Field(default="", max_length=1500)
+
+
 class ThesisIn(BaseModel):
     topic: str = Field(min_length=10, max_length=600)
     variable_x: str = ""
@@ -101,6 +111,7 @@ class ThesisIn(BaseModel):
     # Melanjutkan naskah sendiri: judul milik pengguna dikunci, dan bab yang sudah ada diimpor.
     existing_title: str | None = Field(default=None, min_length=10, max_length=600)
     imported_sections: list[ImportedSection] = Field(default_factory=list, max_length=80)
+    brief: BriefIn | None = None
 
 
 class ThesisPatch(BaseModel):
@@ -109,6 +120,7 @@ class ThesisPatch(BaseModel):
     selected_ref_ids: list[Annotated[str, Field(max_length=64)]] | None = Field(default=None, max_length=50)
     status: str | None = Field(default=None, pattern=r"^(IN_PROGRESS|DRAF_FINAL)$")
     cover: CoverIn | None = None
+    brief: BriefIn | None = None
 
 
 class CitationIn(BaseModel):

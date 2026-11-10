@@ -38,6 +38,7 @@ def _thesis_out(t: Thesis) -> dict:
         "source_mode": t.source_mode or "NEW",
         "review_json": t.review_json or {},
         "cover": t.cover_json or {},
+        "brief": t.brief_json or {},
         "front": t.front_json or {},
         "appendix": t.appendix_json or [],
         "share_token": t.share_token,
@@ -60,6 +61,14 @@ def _thesis_out(t: Thesis) -> dict:
             for s in t.sections
         ],
     }
+
+
+def _clean_brief(brief) -> dict | None:
+    """Simpan hanya bagian yang diisi; kosong semua = tidak ada kerangka."""
+    if brief is None:
+        return None
+    data = {k: " ".join(v.split()) for k, v in brief.model_dump().items() if v and v.strip()}
+    return data or None
 
 
 def _add_missing_sections(thesis: Thesis, db: Session) -> list[str]:
@@ -116,6 +125,7 @@ def create_thesis(
         subject=payload.subject,
         selected_ref_ids=[],
         source_mode="EXISTING" if existing else "NEW",
+        brief_json=_clean_brief(payload.brief),
     )
     db.add(thesis)
     db.flush()
@@ -224,6 +234,8 @@ def patch_thesis(
         thesis.status = payload.status
     if payload.cover is not None:
         thesis.cover_json = payload.cover.model_dump()
+    if payload.brief is not None:
+        thesis.brief_json = _clean_brief(payload.brief)
     db.commit()
     return _thesis_out(thesis)
 

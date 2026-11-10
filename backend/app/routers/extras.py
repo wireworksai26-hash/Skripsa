@@ -8,7 +8,8 @@ from app.core.db import get_db
 from app.core.deps import auth_required, owned_thesis
 from app.core.ratelimit import limit_user
 from app.models.models import Citation, SectionVersion, ShareComment, Thesis, User
-from app.services import insights, refs_io
+from app.core.ratelimit import limit_user
+from app.services import insights, integrity, refs_io
 from app.services.agents import documents
 from app.services.agents.documents import GenerationError
 import secrets
@@ -158,6 +159,21 @@ async def defense_evaluate(payload: DefenseIn, thesis: Thesis = Depends(owned_th
 @router.get("/{thesis_id}/similarity")
 def similarity(thesis: Thesis = Depends(owned_thesis), db: Session = Depends(get_db)):
     return insights.similarity_report(thesis, db)
+
+
+@router.get("/{thesis_id}/integrity/ai-style")
+def integrity_ai_style(thesis: Thesis = Depends(owned_thesis)):
+    return integrity.ai_style_report(thesis)
+
+
+@router.post("/{thesis_id}/integrity/web")
+async def integrity_web(thesis: Thesis = Depends(owned_thesis), db: Session = Depends(get_db)):
+    limit_user(thesis.user_id, "integrity-web", 4, 600)
+    selected = [c for c in db.query(Citation).filter(Citation.thesis_id == thesis.thesis_id).all() if c.citation_id in (thesis.selected_ref_ids or [])]
+    try:
+        return await integrity.web_check(thesis, selected)
+    except RuntimeError as exc:
+        raise HTTPException(503, str(exc))
 
 
 @router.get("/{thesis_id}/sections/{section_code}/versions")

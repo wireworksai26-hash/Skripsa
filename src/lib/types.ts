@@ -232,6 +232,40 @@ export interface ResearchDataItem {
   };
 }
 
+/** Kerangka penelitian yang sudah ditemukan peneliti (mode lanjutan). */
+export interface Brief {
+  topic: string;
+  phenomenon: string;
+  problem: string;
+  theory: string;
+  method: string;
+}
+
+export interface AiStyleReport {
+  sections: Array<{ code: string; title: string; imported: boolean; words: number; score: number | null; label: string; reasons: string[]; examples: string[] }>;
+  overall: number | null;
+  overall_label: string | null;
+  disclaimer: string;
+  note: string;
+}
+
+export interface WebCheckReport {
+  checked: number;
+  errors: number;
+  matches: Array<{
+    section: string;
+    section_title: string;
+    own_writing: boolean;
+    phrase: string;
+    source_title: string;
+    source_doi: string | null;
+    source_year: number | null;
+    other_hits: number;
+    in_your_references: boolean;
+  }>;
+  note: string;
+}
+
 export interface FrontMatter {
   abstractId: string;
   abstractEn: string;
@@ -307,6 +341,7 @@ export interface ThesisProject {
   titlesProvider?: string;
   sourceMode: StartMode;
   cover: CoverOptions;
+  brief: Brief;
   front: FrontMatter | null;
   appendices: Appendix[];
   shareToken: string | null;

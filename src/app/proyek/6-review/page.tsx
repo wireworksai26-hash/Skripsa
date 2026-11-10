@@ -5,6 +5,7 @@ import { Card, AccentCard } from "@/components/ui/card";
 import { Pill } from "@/components/ui/pill";
 import { AppendixCard } from "@/components/review/appendix-card";
 import { DefenseCard } from "@/components/review/defense-card";
+import { IntegrityCard } from "@/components/review/integrity-card";
 import { FrontMatterCard } from "@/components/review/frontmatter-card";
 import { ShareCard } from "@/components/review/share-card";
 import { SimilarityCard } from "@/components/review/similarity-card";
@@ -204,6 +205,8 @@ export default function ReviewPage() {
       <ShareCard />
 
       <BibliographyCard project={project} />
+
+      <IntegrityCard />
     </div>
   );
 }

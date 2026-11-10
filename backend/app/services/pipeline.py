@@ -7,7 +7,7 @@ from app.core.db import SessionLocal
 from app.models.models import Citation, PipelineJob, RagDocument, Thesis, ThesisSection
 from app.services import push
 from app.services.agents import panel, rag, titles, writer
-from app.services.agents.context import context_keywords, other_texts, results_data, sections_digest
+from app.services.agents.context import brief_for_chapter, context_keywords, other_texts, results_data, sections_digest
 from app.services.scientific_api import verify_doi
 from app.services.templates import localize_template, resolve_template
 from app.services.vectorestore import get_vectorstore
@@ -179,6 +179,7 @@ async def run_pipeline(job_id: str, thesis_id: str) -> None:
                         "method": thesis.research_method,
                         "language": thesis.language or "id",
                         "existing_digest": sections_digest(thesis.sections, section.section_code),
+                        "brief": brief_for_chapter(thesis, section.chapter_code),
                         "other_texts": other_texts(thesis.sections, section.section_code),
                         "results_data": results_data(thesis),
                     },

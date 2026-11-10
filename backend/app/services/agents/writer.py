@@ -192,6 +192,14 @@ async def generate_section_draft(
         if digest
         else ""
     )
+    brief = (form.get("brief") or "").strip()
+    brief_block = (
+        "KERANGKA DARI PENELITI (sudah mereka temukan; WAJIB diikuti. Jangan mengganti fenomena, masalah, teori, atau metode ini, "
+        "dan jangan menambah teori atau metode lain yang bertentangan. Kembangkan, jangan dibantah):\n"
+        f"{brief}\n\n"
+        if brief
+        else ""
+    )
     others = [t for t in (form.get("other_texts") or []) if t]
     kind = section_kind(section["section_title"], str(section["chapter_code"]))
     results_data = (form.get("results_data") or "").strip()
@@ -228,6 +236,7 @@ async def generate_section_draft(
         f"{length_rule}"
         f"{section_rules}"
         f"{existing_block}"
+        f"{brief_block}"
         f"{data_block}"
         f"Referensi terverifikasi (satu-satunya sumber sitasi):\n{ref_blocks}\n"
         'Untuk setiap sitasi, isi "snippet" dengan salinan persis SATU kalimat BUKTI dari referensi tersebut.'

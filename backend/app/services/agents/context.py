@@ -55,3 +55,27 @@ def results_data(thesis) -> str:
     if own:
         parts.append(own)
     return "\n\n".join(parts)
+
+
+BRIEF_LABELS = {
+    "topic": "Topik",
+    "phenomenon": "Fenomena",
+    "problem": "Research problem (masalah penelitian)",
+    "theory": "Teori yang dipakai",
+    "method": "Metode (desain, pengumpulan data, analisis)",
+}
+# Bagian kerangka yang relevan per bab; sisanya tidak dikirim agar prompt tetap fokus.
+BRIEF_BY_CHAPTER = {
+    "1": ("topic", "phenomenon", "problem"),
+    "2": ("topic", "theory", "problem"),
+    "3": ("method", "problem", "theory"),
+    "4": ("problem", "method", "theory"),
+    "5": ("problem", "theory", "method"),
+}
+
+
+def brief_for_chapter(thesis, chapter_code: str) -> str:
+    """Kerangka dari peneliti untuk satu bab. Kosong bila peneliti tidak mengisinya."""
+    brief = getattr(thesis, "brief_json", None) or {}
+    keys = BRIEF_BY_CHAPTER.get(str(chapter_code).split(".")[0], tuple(BRIEF_LABELS))
+    return "\n".join(f"- {BRIEF_LABELS[k]}: {brief[k]}" for k in keys if brief.get(k))

@@ -69,6 +69,7 @@ class Thesis(Base):
     charts_json = Column(JSON, default=list)
     diagrams_json = Column(JSON, default=list)
     review_json = Column(JSON, default=dict)
+    brief_json = Column(JSON, nullable=True)  # kerangka dari peneliti: topik, fenomena, masalah, teori, metode
     front_json = Column(JSON, nullable=True)  # abstrak id/en, kata kunci, kata pengantar
     appendix_json = Column(JSON, nullable=True)  # lampiran instrumen: [{id,title,intro,items}]
     share_token = Column(String(48), unique=True, nullable=True, index=True)

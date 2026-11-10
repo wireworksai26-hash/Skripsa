@@ -6,6 +6,7 @@ import type { TemplateSummary } from "@/lib/templates";
 import type {
   AgentReview,
   ChartSpec,
+  Brief,
   CoverOptions,
   DiagramSpec,
   InisiasiForm,
@@ -78,7 +79,8 @@ interface ProjectState {
   templates: TemplateSummary[];
 
   loadTemplates: () => Promise<void>;
-  startProject: (form: InisiasiForm, existing?: ExistingStart) => Promise<void>;
+  startProject: (form: InisiasiForm, existing?: ExistingStart, brief?: Brief) => Promise<void>;
+  updateBrief: (b: Brief) => Promise<void>;
   loadActive: () => Promise<void>;
   closeProject: () => void;
   deleteProject: () => Promise<void>;
@@ -138,8 +140,8 @@ export const useProject = create<ProjectState>()(
           set({ templates: await api.listTemplates() });
         },
 
-        startProject: async (form, existing) => {
-          const project = await api.createThesis(form, existing);
+        startProject: async (form, existing, brief) => {
+          const project = await api.createThesis(form, existing, brief);
           set({ project, activeId: project.id });
         },
 
@@ -183,6 +185,18 @@ export const useProject = create<ProjectState>()(
         reload: async () => {
           const id = get().activeId;
           if (id) set({ project: await api.loadThesis(id) });
+        },
+
+        updateBrief: async (b) => {
+          const p = current();
+          const before = p.brief;
+          patch(() => ({ brief: b }));
+          try {
+            await api.updateBrief(p.id, b);
+          } catch (e) {
+            patch(() => ({ brief: before }));
+            throw e;
+          }
         },
 
         updateCover: async (c) => {

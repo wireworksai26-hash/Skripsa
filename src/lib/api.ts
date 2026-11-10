@@ -3,6 +3,9 @@ import type {
   AgentKind,
   AgentReview,
   Activity,
+  AiStyleReport,
+  WebCheckReport,
+  Brief,
   ResearchDataItem,
   Appendix,
   ChartSpec,
@@ -174,6 +177,7 @@ interface ServerThesis {
   selected_ref_ids: string[];
   status: string;
   source_mode?: string;
+  brief?: Partial<Brief>;
   front?: { abstract_id?: string; abstract_en?: string; keywords_id?: string[]; keywords_en?: string[]; preface?: string };
   appendix?: Appendix[];
   share_token?: string | null;
@@ -414,6 +418,7 @@ function mapThesis(
     ),
     sourceMode: t.source_mode === "EXISTING" ? "EXISTING" : "NEW",
     cover: mapCover(t.cover, template),
+    brief: { topic: t.brief?.topic ?? "", phenomenon: t.brief?.phenomenon ?? "", problem: t.brief?.problem ?? "", theory: t.brief?.theory ?? "", method: t.brief?.method ?? "" },
     front: mapFront(t.front),
     appendices: t.appendix ?? [],
     shareToken: t.share_token ?? null,
@@ -466,7 +471,7 @@ export const api = {
       unpaywall: boolean;
     }>("/health", { auth: false }),
 
-  createThesis: async (form: InisiasiForm, existing?: ExistingStart): Promise<ThesisProject> => {
+  createThesis: async (form: InisiasiForm, existing?: ExistingStart, brief?: Brief): Promise<ThesisProject> => {
     const t = await request<ServerThesis>("/theses", {
       body: {
         ...(existing
@@ -484,6 +489,7 @@ export const api = {
         degree_level: form.degreeLevel,
         language: form.language,
         template_id: form.templateId,
+        ...(brief ? { brief } : {}),
       },
     });
     // Mode lanjutan: server sudah membuat opsi judul milik pengguna; ambil agar kartu "judul terkunci" terisi.
@@ -678,6 +684,11 @@ export const api = {
     const r = await request<{ data: ServerData; provider: string }>(`/theses/${id}/data/${dataId}/analyze`, { method: "POST", body: {} });
     return { data: mapData(r.data), provider: r.provider };
   },
+
+  updateBrief: (id: string, brief: Brief) => request(`/theses/${id}`, { method: "PATCH", body: { brief } }),
+
+  aiStyle: (id: string) => request<AiStyleReport>(`/theses/${id}/integrity/ai-style`),
+  webCheck: (id: string) => request<WebCheckReport>(`/theses/${id}/integrity/web`, { method: "POST", body: {} }),
 
   getProfile: async (): Promise<Profile> => mapProfile(await request<ServerProfile>("/auth/me")),
 

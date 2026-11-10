@@ -2,6 +2,8 @@
 
 import { askConfirm } from "@/components/ui/confirm";
 import { CoverCard } from "@/components/cover/cover-card";
+import { BriefCard } from "@/components/wizard/brief-card";
+import { BriefFields, briefFilled, EMPTY_BRIEF } from "@/components/wizard/brief-fields";
 import { Button, ButtonLink } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { FieldHint, Input, Label, Select, Textarea } from "@/components/ui/field";
@@ -48,6 +50,8 @@ export default function InisiasiPage() {
   const [error, setError] = useState<string | null>(null);
   const [mode, setMode] = useState<StartMode>("NEW");
   const [imported, setImported] = useState<ParsedDraft | null>(null);
+  const [advanced, setAdvanced] = useState(false);
+  const [brief, setBrief] = useState(EMPTY_BRIEF);
 
   const existing = mode === "EXISTING";
   const [extracting, setExtracting] = useState(false);
@@ -143,7 +147,8 @@ export default function InisiasiPage() {
                 c.sections.map((x) => ({ section_code: x.section_code, title: x.title, content: x.content }))
               ),
             }
-          : undefined
+          : undefined,
+        existing && advanced && briefFilled(brief) ? brief : undefined
       );
       router.push("/proyek/2-judul");
     } catch (e) {
@@ -192,6 +197,7 @@ export default function InisiasiPage() {
           </Button>
         </div>
       </Card>
+      <BriefCard />
       <CoverCard />
       </div>
     );
@@ -376,6 +382,25 @@ export default function InisiasiPage() {
               />
             </div>
           </div>
+
+          {existing && (
+            <div className="rounded-card border border-hairline p-4">
+              <label className="flex min-h-10 cursor-pointer items-start gap-3">
+                <input type="checkbox" role="switch" className="mt-1.5 h-4 w-4" checked={advanced} onChange={(e) => setAdvanced(e.target.checked)} />
+                <span>
+                  <span className="block text-[14px] font-semibold">Mode lanjutan</span>
+                  <span className="block text-[12.5px] leading-relaxed text-black/55">
+                    Saya sudah menemukan topik, fenomena, research problem, teori, dan metode. Penulis akan mengambil dan mengembangkannya per bab, bukan menggantinya.
+                  </span>
+                </span>
+              </label>
+              {advanced && (
+                <div className="mt-4 border-t border-hairline pt-4">
+                  <BriefFields value={brief} onChange={setBrief} idPrefix="new-brief" />
+                </div>
+              )}
+            </div>
+          )}
 
           {existing && <DraftImport value={imported} onChange={setImported} />}
 
