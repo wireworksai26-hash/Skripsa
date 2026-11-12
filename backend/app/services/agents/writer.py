@@ -1,7 +1,7 @@
 import re
 
 from app.services.agents.context import form_keywords
-from app.services.agents.quality import check_kind, dedupe_paragraphs, kind_rules, polish, section_kind
+from app.services.agents.quality import check_kind, dedupe_paragraphs, drop_summary_tail, enforce_closing, kind_rules, polish, section_kind
 from app.services.agents.rag import is_from_abstract
 from app.services.agents.structured import STRUCTURED_KINDS, structured_draft
 from app.services.citation import in_text_marker
@@ -212,7 +212,7 @@ async def generate_section_draft(
     section_rules = kind_rules(kind, language, bool(results_data))
     # Bab III (metodologi) sering bersandar pada buku metode yang tidak ada di rujukan terpilih; memaksakan sitasi
     # justru mendorong sitasi asal tempel. Di bab ini sitasi dianjurkan, bukan syarat.
-    citations_required = str(section["chapter_code"]) != "3"
+    citations_required = str(section["chapter_code"]) != "3" and kind not in ("significance", "focus")
     target_words, min_words = _target_plan(section)
     length_rule = (
         f"Panjang wajib: minimal {min_words} kata (target {target_words} kata). "
@@ -226,16 +226,28 @@ async def generate_section_draft(
         if language == "en"
         else ""
     )
+    mirror = (form.get("mirror_rq") or "").strip()
+    mirror_block = (
+        "RUMUSAN MASALAH YANG SUDAH DITULIS (tujuan WAJIB mencerminkannya satu per satu: jumlah butir sama, urutan sama, istilah kunci sama. "
+        "Jangan mengganti konsep, mis. 'respond/response' tidak boleh menjadi 'perception', dan jangan menambah topik baru):\n"
+        f"{mirror}\n\n"
+        if mirror and kind == "objectives"
+        else ""
+    )
+    outline_hint = (section.get("outline_hint") or "").strip()
+    outline_block = f"STRUKTUR: {outline_hint}\n" if outline_hint else ""
     user = (
         f"Judul skripsi: {form.get('title', form.get('topic', ''))}\n"
         f"Formulir: topik=\"{form.get('topic')}\", X=\"{form.get('variable_x')}\", "
         f"Y=\"{form.get('variable_y')}\", subjek=\"{form.get('subject')}\", metode={form.get('method')}\n"
         f"Tugas: Bab {section['chapter_code']} subbab {section['section_code']} — "
         f"{section['section_title']} (target {section['target_words']} kata)\n"
+        f"{outline_block}"
         f"{language_rule}"
         f"{length_rule}"
         f"{section_rules}"
         f"{existing_block}"
+        f"{mirror_block}"
         f"{brief_block}"
         f"{data_block}"
         f"Referensi terverifikasi (satu-satunya sumber sitasi):\n{ref_blocks}\n"
@@ -247,12 +259,19 @@ async def generate_section_draft(
     # Subbab berbentuk butir, dan temuan Bab IV tanpa data, disusun dari JSON terstruktur (audit BUG-02/03).
     structured_kind = kind if kind in STRUCTURED_KINDS else ("findings" if chapter_four_no_data else None)
     if structured_kind:
-        text, provider = await structured_draft(structured_kind, section, user, language, list(markers.values()), others)
+        text, provider = await structured_draft(structured_kind, section, user, language, list(markers.values()), others, mirror_count=int(form.get("mirror_count") or 0) or None)
         found = {c["reference_id"]: c for c in _collect_citations({}, text, markers, ref_picks, keywords)}
         return {"content": text, "citations": list(found.values())}, provider
 
     def finish(text: str, found: dict, provider: str):
-        return {"content": polish(text, list(markers.values())), "citations": list(found.values())}, provider
+        if kind == "background":
+            text = enforce_closing(drop_summary_tail(text), str(form.get("title") or form.get("topic") or ""), language)
+        elif kind == "significance":
+            text = drop_summary_tail(text)
+        content = polish(text, list(markers.values()))
+        # Paragraf yang dipotong tidak boleh meninggalkan sitasi yatim di daftar sitasi subbab.
+        kept = {k: v for k, v in found.items() if markers.get(k) and markers[k] in content}
+        return {"content": content, "citations": list(kept.values())}, provider
 
     max_tokens = min(4096, max(2400, int(target_words * 2.2) + 800))
     names: list[str | None] = [p.name for p in route("heavy")] or [None]

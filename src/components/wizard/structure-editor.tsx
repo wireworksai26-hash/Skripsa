@@ -8,8 +8,8 @@ import { Pill } from "@/components/ui/pill";
 import { api, ApiError } from "@/lib/api";
 import { useProject } from "@/lib/store";
 import { countWords } from "@/lib/utils";
-import { ArrowDown, ArrowUp, CornerDownRight, ListTree, Plus, Save, Trash2, X } from "lucide-react";
-import { useState } from "react";
+import { ArrowDown, ArrowUp, CornerDownRight, ListTree, Plus, Save, Sparkles, Trash2, X } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 
 interface Row {
   key: string;
@@ -18,6 +18,8 @@ interface Row {
   words: number;
   level: 1 | 2;
   hasText: boolean;
+  /** Usulan agen yang belum disimpan; pengguna bebas mengubah atau menghapusnya. */
+  ai?: boolean;
 }
 interface Chap {
   key: string;
@@ -29,7 +31,9 @@ let seq = 0;
 const nextKey = () => `k${++seq}`;
 
 /** Editor struktur bab per proyek: tambah, hapus, ganti nama, urutkan, dan jadikan anak (2.1.1). */
-export function StructureEditor({ onClose }: { onClose: () => void }) {
+const PARENT_INTRO_WORDS = 150;
+
+export function StructureEditor({ onClose, autoSuggest = false }: { onClose: () => void; autoSuggest?: boolean }) {
   const project = useProject((s) => s.project);
   const reload = useProject((s) => s.reload);
   const [chapters, setChapters] = useState<Chap[]>(() =>
@@ -52,6 +56,69 @@ export function StructureEditor({ onClose }: { onClose: () => void }) {
   );
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [suggesting, setSuggesting] = useState<"all" | number | null>(null);
+  const [suggestNote, setSuggestNote] = useState<string | null>(null);
+  const autoRan = useRef(false);
+
+  const suggest = async (only: number | null) => {
+    if (!project) return;
+    setSuggesting(only ?? "all");
+    setSuggestNote(null);
+    setError(null);
+    try {
+      const scope = chapters.filter((_, i) => only === null || i === only);
+      const nums = [...new Set(scope.flatMap((c) => c.rows.map((r) => r.code?.split(".")[0]).filter((n): n is string => !!n)))];
+      if (nums.length === 0) {
+        setError("Simpan struktur bab ini dulu agar agen mengenali subbabnya.");
+        return;
+      }
+      // "Semua bab" dikirim kosong agar server memakai pengecualian otomatis (Bab I dan bab penutup); bab yang dipilih eksplisit tetap diproses.
+      const res = await api.suggestSubsections(project.id, only === null ? [] : nums);
+      // Dihitung dari state saat ini (bukan di dalam pembaruan state, yang berjalan belakangan).
+      let added = 0;
+      let parents = 0;
+      const next = chapters.map((c, i) => {
+        if (only !== null && i !== only) return c;
+        const rows: Row[] = [];
+        c.rows.forEach((r, ri) => {
+          const sugg = r.level === 1 && r.code ? res.suggestions[r.code] : undefined;
+          const rest = c.rows.slice(ri + 1);
+          const nextParent = rest.findIndex((x) => x.level === 1);
+          const hasKids = (nextParent === -1 ? rest : rest.slice(0, nextParent)).some((x) => x.level === 2);
+          if (!sugg || hasKids) {
+            rows.push(r);
+            return;
+          }
+          parents += 1;
+          added += sugg.length;
+          rows.push({ ...r, words: Math.min(r.words, PARENT_INTRO_WORDS) });
+          sugg.forEach((s) => rows.push({ key: nextKey(), code: null, title: s.title, words: s.target_words, level: 2, hasText: false, ai: true }));
+        });
+        return { ...c, rows };
+      });
+      setChapters(next);
+      const parts = [
+        added > 0
+          ? `${added} sub-subbab diusulkan untuk ${parents} subbab. Tinjau, ubah atau hapus yang tidak cocok, lalu tekan Simpan struktur. Subbab induknya menjadi pengantar singkat (±${PARENT_INTRO_WORDS} kata).`
+          : "Agen tidak menemukan subbab yang perlu dipecah lagi (subbab yang sudah punya anak atau terlalu sempit dilewati).",
+        res.errors.length > 0 ? `Sebagian gagal: ${res.errors.join("; ")}` : "",
+      ].filter(Boolean);
+      setSuggestNote(parts.join(" "));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Gagal meminta usulan sub-subbab");
+    } finally {
+      setSuggesting(null);
+    }
+  };
+
+  useEffect(() => {
+    if (autoSuggest && project && !autoRan.current) {
+      autoRan.current = true;
+      void suggest(null);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoSuggest, project]);
+
   if (!project) return null;
 
   const setChap = (ci: number, fn: (c: Chap) => Chap) => setChapters((cs) => cs.map((c, i) => (i === ci ? fn(c) : c)));
@@ -110,6 +177,13 @@ export function StructureEditor({ onClose }: { onClose: () => void }) {
       <p className="mt-1 text-[13px] leading-relaxed text-graphite">
         Tambah, hapus, ganti nama, dan urutkan subbab. Tombol <CornerDownRight size={12} className="inline" /> menjadikan subbab sebagai anak (mis. 2.1.1). Tulisan pada subbab yang dipertahankan ikut pindah ke nomor barunya.
       </p>
+      <div className="mt-3 flex flex-wrap items-center gap-2">
+        <Button variant="ghost" loading={suggesting === "all"} disabled={suggesting !== null || busy} onClick={() => suggest(null)}>
+          {suggesting !== "all" && <Sparkles size={15} />} Usulkan sub-subbab (AI)
+        </Button>
+        <span className="text-[12.5px] text-black/55">Hanya usulan: tidak ada yang tersimpan sebelum Anda menekan Simpan struktur.</span>
+      </div>
+      {suggestNote && <p className="mt-2 text-[13px] leading-relaxed text-graphite">{suggestNote}</p>}
 
       <div className="mt-4 space-y-5">
         {chapters.map((c, ci) => (
@@ -148,6 +222,7 @@ export function StructureEditor({ onClose }: { onClose: () => void }) {
                   >
                     <CornerDownRight size={15} />
                   </button>
+                  {r.ai && <span className="shrink-0 rounded-full bg-sky-tint px-2 py-0.5 text-[11px] font-medium text-brand">AI</span>}
                   <Input aria-label="Judul subbab" value={r.title} onChange={(e) => setRow(ci, ri, { title: e.target.value })} />
                   <input
                     aria-label="Target kata"
@@ -179,6 +254,9 @@ export function StructureEditor({ onClose }: { onClose: () => void }) {
               onClick={() => setChap(ci, (x) => ({ ...x, rows: [...x.rows, { key: nextKey(), code: null, title: "", words: 400, level: 1, hasText: false }] }))}
             >
               <Plus size={14} /> Tambah subbab
+            </Button>
+            <Button className="ml-1 mt-2" variant="text" size="sm" loading={suggesting === ci} disabled={suggesting !== null || busy} onClick={() => suggest(ci)}>
+              {suggesting !== ci && <Sparkles size={14} />} Usulkan sub-subbab bab ini
             </Button>
           </div>
         ))}

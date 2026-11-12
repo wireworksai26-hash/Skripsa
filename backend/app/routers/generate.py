@@ -7,7 +7,7 @@ from app.core.ratelimit import limit_user
 from app.models.models import TitleOption
 from app.schemas.schemas import GenerateOut
 from app.services.agents import rag, writer
-from app.services.agents.context import brief_for_chapter, context_keywords, other_texts, results_data, sections_digest
+from app.services.agents.context import brief_for_chapter, context_keywords, mirror_fields, other_texts, results_data, section_plan, sections_digest
 from app.services.pipeline import create_job, run_pipeline, run_titles_only
 from app.services.templates import resolve_template
 
@@ -96,12 +96,7 @@ async def generate_section(
     )
     ref_dicts = rag.retrieve(ref_dicts, query)
     draft, provider = await writer.generate_section_draft(
-        {
-            "chapter_code": section.chapter_code,
-            "section_code": section.section_code,
-            "section_title": section.section_title,
-            "target_words": section.target_words,
-        },
+        section_plan(thesis.sections, section),
         {
             "topic": thesis.title,
             "variable_x": thesis.variable_x,
@@ -110,9 +105,10 @@ async def generate_section(
             "method": thesis.research_method,
             "language": thesis.language or "id",
             "existing_digest": sections_digest(thesis.sections, section.section_code),
-            "brief": brief_for_chapter(thesis, section.chapter_code),
+            "brief": brief_for_chapter(thesis, section.chapter_code, section.section_title),
             "other_texts": other_texts(thesis.sections, section.section_code),
             "results_data": results_data(thesis),
+            **mirror_fields(thesis, section),
         },
         ref_dicts,
         template.get("citation_style", "APA_7TH"),

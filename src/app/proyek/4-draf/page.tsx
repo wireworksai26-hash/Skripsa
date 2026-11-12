@@ -20,6 +20,7 @@ import {
   MoveRight,
   Pencil,
   RefreshCw,
+  Sparkles,
   Wand2,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -54,6 +55,7 @@ export default function DrafPage() {
 
   const [chapterCode, setChapterCode] = useState<string | null>(null);
   const [editingStructure, setEditingStructure] = useState(false);
+  const [autoSuggest, setAutoSuggest] = useState(false);
   const [activeCode, setActiveCode] = useState<string | null>(null);
   const [progress, setProgress] = useState<{ done: number; total: number; code: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -215,8 +217,11 @@ export default function DrafPage() {
                 Lanjut: Visual <MoveRight size={14} />
               </Button>
             )}
-            <Button variant="text" onClick={() => setEditingStructure(true)} disabled={busy}>
+            <Button variant="text" onClick={() => { setAutoSuggest(false); setEditingStructure(true); }} disabled={busy}>
               <ListTree size={14} /> Ubah struktur bab
+            </Button>
+            <Button variant="text" onClick={() => { setAutoSuggest(true); setEditingStructure(true); }} disabled={busy}>
+              <Sparkles size={14} /> Sub-subbab (AI)
             </Button>
             {progress && (
               <Pill tone="yellow">
@@ -245,7 +250,7 @@ export default function DrafPage() {
         </div>
       </Card>
 
-      {editingStructure && <StructureEditor onClose={() => setEditingStructure(false)} />}
+      {editingStructure && <StructureEditor key={String(autoSuggest)} autoSuggest={autoSuggest} onClose={() => setEditingStructure(false)} />}
 
       <div className={cn("grid gap-4", viewer ? "lg:grid-cols-2" : "lg:grid-cols-[1fr_380px]")}>
         <div className={cn("space-y-3", viewer && "hidden")}>

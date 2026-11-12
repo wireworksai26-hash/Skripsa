@@ -10,7 +10,10 @@ from sqlalchemy.orm import Session
 
 from app.core.db import get_db
 from app.core.deps import owned_thesis
+from app.core.ratelimit import limit_user
 from app.models.models import CustomTemplate, Thesis, ThesisSection
+from app.services.agents import outline
+from app.services.agents.documents import GenerationError
 from app.services.templates import resolve_template
 
 router = APIRouter(prefix="/theses", tags=["structure"])
@@ -57,6 +60,20 @@ def compute_codes(chapters: list[ChapterIn]) -> list[list[str]]:
                 codes.append(f"{n}.{k}")
         out.append(codes)
     return out
+
+
+class SuggestIn(BaseModel):
+    chapters: list[str] = Field(default_factory=list, max_length=MAX_CHAPTERS)  # nomor bab; kosong = semua
+
+
+@router.post("/{thesis_id}/structure/suggest")
+async def suggest_subsections(payload: SuggestIn, thesis: Thesis = Depends(owned_thesis), db: Session = Depends(get_db)):
+    """Usulan sub-subbab (2.1.1) dari agen. Tidak mengubah data: pengguna meninjau lalu menyimpan lewat PUT /structure."""
+    limit_user(thesis.user_id, "structure-suggest", 10, 60)
+    try:
+        return await outline.propose(thesis, db, payload.chapters)
+    except GenerationError as exc:
+        raise HTTPException(503, str(exc))
 
 
 @router.put("/{thesis_id}/structure")

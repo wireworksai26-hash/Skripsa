@@ -98,6 +98,7 @@ _KINDS = [
     ("objectives", r"(tujuan penelitian|objectives? of the (study|research)|research objectives?|purposes? of the study)"),
     ("hypothesis", r"(hipotesis|hypothes[ie]s)"),
     ("suggestions", r"(^saran$|\bsaran\b|suggestions?|recommendations?)"),
+    ("background", r"(latar belakang|background of the (study|research|problem)|^background$)"),
     ("significance", r"(manfaat|kegunaan|significance)"),
     ("focus", r"(fokus penelitian|batasan masalah|focus of the study|scope|limitation of the (study|problem))"),
     ("findings", r"(temuan|hasil penelitian|hasil pengujian|deskripsi data|findings|results?|description of the data)"),
@@ -110,6 +111,8 @@ def section_kind(title: str, chapter_code: str = "") -> str | None:
     for kind, pat in _KINDS:
         if re.search(pat, t):
             if kind in ("findings", "discussion") and chapter_code not in ("4", ""):
+                continue
+            if kind == "background" and chapter_code not in ("1", ""):
                 continue
             return kind
     return None
@@ -131,10 +134,10 @@ def kind_rules(kind: str | None, language: str, has_data: bool) -> str:
     )
     rules = {
         "rq": (
-            "Write one short introductory sentence, then a NUMBERED LIST of 2-4 research questions, one per line, each "
+            "Write one short introductory sentence, then a NUMBERED LIST of 3 research questions (4 at most; S1 theses are best with 3), one per line, each "
             "starting with '1.', '2.' and ending with a question mark."
             if en
-            else "Tulis satu kalimat pengantar singkat, lalu DAFTAR BERNOMOR berisi 2-4 rumusan masalah, satu per baris, "
+            else "Tulis satu kalimat pengantar singkat, lalu DAFTAR BERNOMOR berisi 3 rumusan masalah (maksimal 4; skripsi S1 paling baik 3), satu per baris, "
             "diawali '1.', '2.' dan diakhiri tanda tanya."
         ),
         "rq_obj": (
@@ -165,14 +168,40 @@ def kind_rules(kind: str | None, language: str, has_data: bool) -> str:
         ),
         "significance": (
             "Present the significance as two parts: theoretical significance and practical significance (for specific "
-            "parties), each clearly labelled."
+            "parties), each clearly labelled. State only the CONTRIBUTION this study hopes to make; do not review literature "
+            "(citations are optional and should be rare). Do NOT add a closing or summary paragraph (no 'In summary...')."
             if en
-            else "Sajikan manfaat dalam dua bagian berlabel: manfaat teoretis dan manfaat praktis (untuk pihak-pihak tertentu)."
+            else "Sajikan manfaat dalam dua bagian berlabel: manfaat teoretis dan manfaat praktis (untuk pihak-pihak tertentu). "
+            "Nyatakan hanya KONTRIBUSI yang diharapkan dari penelitian ini; jangan meninjau pustaka (sitasi opsional dan jarang). "
+            "JANGAN menambah paragraf penutup atau ringkasan (tanpa 'Secara keseluruhan...')."
         ),
         "focus": (
-            "State the focus/scope concretely (who, what, where, which aspects), not a general essay."
+            "State the focus/scope concretely (who, what, where, which aspects), not a general essay. Lock the analysis to ONE "
+            "named theory/framework: if the RESEARCHER'S FRAMEWORK names a theory, state explicitly that the analysis is "
+            "grounded in it, using its name. If no theory is given, write the placeholder [DATA: main theory used to analyse the data]; "
+            "never invent a theorist or framework name. This is not a literature review: state the boundaries only (citations are optional and rare)."
             if en
-            else "Nyatakan fokus/batasan secara konkret (siapa, apa, di mana, aspek apa), bukan esai umum."
+            else "Nyatakan fokus/batasan secara konkret (siapa, apa, di mana, aspek apa), bukan esai umum. Kunci analisis pada SATU teori/"
+            "kerangka bernama: bila KERANGKA DARI PENELITI menyebut teori, tegaskan bahwa analisis berlandaskan teori itu dengan "
+            "menyebut namanya. Bila tidak ada, tulis penanda [DATA: teori utama yang membedah data]; jangan mengarang nama ahli atau kerangka. Ini bukan tinjauan pustaka: nyatakan batasannya saja (sitasi opsional dan jarang)."
+        ),
+        "background": (
+            "Write the Background of the Study as ONE continuous argument, in this order: why the topic matters; the phenomenon/"
+            "problem in the field; the key concept(s) briefly; relevant previous studies (cited); the research gap. If it refers to "
+            "preliminary observation or interviews, do NOT invent numbers or findings: insert a placeholder such as "
+            "[DATA: result of the preliminary observation/interview with the teacher]. The LAST paragraph is ONE short paragraph stating "
+            "that, based on the phenomena and gap above, the researcher is interested in conducting a study entitled \"<the thesis title>\". "
+            "Nothing may follow it. Do NOT write recap paragraphs ('This background has established...') and do not restate teacher roles, "
+            "definitions, the reason for the design, or practical benefits (those belong to later subsections). If the length target "
+            "is not reached, deepen the argument or previous studies instead of repeating."
+            if en
+            else "Tulis Latar Belakang sebagai SATU alur argumen berurutan: mengapa topik penting; fenomena/masalah di lapangan; konsep "
+            "kunci secara singkat; penelitian terdahulu yang relevan (disitasi); celah penelitian. Bila menyebut observasi/wawancara awal, "
+            "JANGAN mengarang angka atau temuan: sisipkan penanda seperti [DATA: hasil observasi/wawancara awal dengan guru]. Paragraf "
+            "TERAKHIR adalah SATU paragraf pendek yang menyatakan bahwa, berdasarkan fenomena dan celah di atas, peneliti tertarik "
+            "melakukan penelitian berjudul \"<judul skripsi>\". Tidak boleh ada paragraf setelahnya. JANGAN menulis paragraf rangkuman "
+            "('Latar belakang ini telah menunjukkan...') dan jangan mengulang peran guru, definisi, alasan memilih desain, atau manfaat "
+            "praktis (itu isi subbab lain). Bila target panjang belum tercapai, perdalam argumen atau penelitian terdahulu, bukan mengulang."
         ),
     }
     findings_rule = (
@@ -214,6 +243,46 @@ def check_kind(kind: str | None, text: str, chapter_four_without_data: bool = Fa
         return "Subbab ini WAJIB memuat daftar bernomor tujuan penelitian (minimal 2 butir). Tulis ulang seluruh subbab."
     if kind == "suggestions" and len(items) < 3:
         return "Subbab ini WAJIB memuat minimal 3 butir saran bernomor yang konkret. Tulis ulang seluruh subbab."
+    # Latar Belakang dan Manfaat tidak ditolak karena ekornya: enforce_closing()/drop_summary_tail() membereskannya secara deterministik.
     if chapter_four_without_data and kind == "findings" and "[DATA" not in text.upper():
         return "Belum ada data lapangan: sisipkan penanda isian [DATA: ...] untuk kutipan/angka, jangan menulis temuan umum tanpa data. Tulis ulang."
     return None
+
+
+# ---------- bentuk akhir subbab tertentu (Latar Belakang, Manfaat) ----------
+
+_INTEREST = re.compile(r"(entitled|titled|berjudul|bertajuk|judul)", re.I)
+_SUMMARY_OPEN = re.compile(
+    r"^\s*(this background has|in summary|in conclusion|to sum up|to summari[sz]e|overall,|taken together|secara keseluruhan|singkatnya|"
+    r"kesimpulannya|latar belakang (di atas|ini) telah|dengan demikian,? (latar belakang|manfaat))",
+    re.I,
+)
+
+
+def drop_summary_tail(text: str) -> str:
+    """Buang paragraf penutup yang hanya merangkum (mis. 'In summary, the significance...') bila masih ada isi lain."""
+    paras = paragraphs(text)
+    while len(paras) > 2 and _SUMMARY_OPEN.match(paras[-1]):
+        paras.pop()
+    return "\n\n".join(paras)
+
+
+def enforce_closing(text: str, title: str, language: str) -> str:
+    """Latar Belakang ditutup tegas dengan pernyataan ketertarikan peneliti pada judul; paragraf sesudahnya dibuang.
+
+    Kalimat penutup hanya berisi judul asli skripsi (bukan data karangan). Bila model sudah menulisnya, semua yang
+    sesudah paragraf itu (rangkuman, pengulangan) dipotong; bila belum, kalimat itu ditambahkan.
+    """
+    paras = paragraphs(text)
+    if not paras or not title.strip():
+        return text
+    cut = next((i for i in range(len(paras) - 1, -1, -1) if _INTEREST.search(paras[i]) and len(paras[i].split()) <= 90), None)
+    if cut is not None:
+        return "\n\n".join(paras[: cut + 1])
+    paras = [p for p in paras if not _SUMMARY_OPEN.match(p)]
+    closing = (
+        f'Based on the phenomena and the research gap explained above, the researcher is interested in conducting a study entitled "{title.strip()}".'
+        if language == "en"
+        else f'Berdasarkan fenomena dan celah penelitian yang telah diuraikan, peneliti tertarik melakukan penelitian berjudul "{title.strip()}".'
+    )
+    return "\n\n".join(paras + [closing])

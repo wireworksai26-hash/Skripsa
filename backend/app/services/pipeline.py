@@ -7,7 +7,7 @@ from app.core.db import SessionLocal
 from app.models.models import Citation, PipelineJob, RagDocument, Thesis, ThesisSection
 from app.services import push
 from app.services.agents import panel, rag, titles, writer
-from app.services.agents.context import brief_for_chapter, context_keywords, other_texts, results_data, sections_digest
+from app.services.agents.context import brief_for_chapter, context_keywords, mirror_fields, other_texts, results_data, section_plan, sections_digest
 from app.services.scientific_api import verify_doi
 from app.services.templates import localize_template, resolve_template
 from app.services.vectorestore import get_vectorstore
@@ -165,12 +165,7 @@ async def run_pipeline(job_id: str, thesis_id: str) -> None:
                 if section.origin == "IMPORTED" or writer.valid_word_count(section.content_markdown or "") >= 10:
                     continue  # tulisan pengguna tidak disentuh
                 draft, provider = await writer.generate_section_draft(
-                    {
-                        "chapter_code": section.chapter_code,
-                        "section_code": section.section_code,
-                        "section_title": section.section_title,
-                        "target_words": section.target_words,
-                    },
+                    section_plan(thesis.sections, section),
                     {
                         "topic": thesis.title,
                         "variable_x": thesis.variable_x,
@@ -179,9 +174,10 @@ async def run_pipeline(job_id: str, thesis_id: str) -> None:
                         "method": thesis.research_method,
                         "language": thesis.language or "id",
                         "existing_digest": sections_digest(thesis.sections, section.section_code),
-                        "brief": brief_for_chapter(thesis, section.chapter_code),
+                        "brief": brief_for_chapter(thesis, section.chapter_code, section.section_title),
                         "other_texts": other_texts(thesis.sections, section.section_code),
                         "results_data": results_data(thesis),
+                        **mirror_fields(thesis, section),
                     },
                     rag.retrieve(
                         ref_dicts,

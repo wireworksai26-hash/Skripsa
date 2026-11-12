@@ -44,6 +44,13 @@ export interface ExistingStart {
   sections: Array<{ section_code: string; title: string; content: string }>;
 }
 
+export interface SubsectionSuggestions {
+  suggestions: Record<string, Array<{ title: string; target_words: number }>>;
+  skipped: string[];
+  errors: string[];
+  provider: string;
+}
+
 export interface FoundationalResult {
   found: Array<ServerCitation & { already: boolean; entry: string; note: string }>;
   added: number;
@@ -690,6 +697,9 @@ export const api = {
     chapters: Array<{ title: string; sections: Array<{ code: string | null; title: string; target_words: number; level: 1 | 2 }> }>,
     confirmDelete: boolean
   ) => request(`/theses/${id}/structure`, { method: "PUT", body: { chapters, confirm_delete: confirmDelete } }),
+
+  suggestSubsections: (id: string, chapters: string[]) =>
+    request<SubsectionSuggestions>(`/theses/${id}/structure/suggest`, { method: "POST", body: { chapters } }),
 
   listData: async (id: string): Promise<ResearchDataItem[]> => (await request<ServerData[]>(`/theses/${id}/data`)).map(mapData),
   addData: async (id: string, d: { title: string; kind: "table" | "text"; content: string }): Promise<ResearchDataItem> =>

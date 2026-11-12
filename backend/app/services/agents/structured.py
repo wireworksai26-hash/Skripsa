@@ -13,7 +13,7 @@ from app.services.llm import LLMUnavailable, extract_json, llm_chat_ex
 STRUCTURED_KINDS = {"rq", "rq_obj", "objectives", "suggestions"}
 
 _SCHEMAS = {
-    "rq": '{"intro":"one sentence","questions":["question ending with ?", "..."]}  (2-4 questions)',
+    "rq": '{"intro":"one sentence","questions":["question ending with ?", "..."]}  (3 questions is ideal, 4 at most)',
     "objectives": '{"intro":"one sentence","objectives":["To ...", "..."]}  (2-4 objectives mirroring the research questions)',
     "rq_obj": '{"intro":"one sentence","questions":["...?"],"objectives_intro":"one sentence","objectives":["To ..."]}',
     "suggestions": '{"intro":"one sentence","groups":[{"audience":"English teachers","items":["concrete suggestion", "..."]},'
@@ -26,6 +26,15 @@ _SCHEMAS = {
 
 def _clean(s) -> str:
     return " ".join(str(s or "").split()).strip()
+
+
+_CITE_PAREN = re.compile(r"\s*\([^()]*\d{4}[a-z]?\)")
+
+
+def _item(s) -> str:
+    """Butir rumusan/tujuan/saran: tanpa penanda sitasi. Butir yang tinggal sitasi (atau < 2 kata) dibuang oleh pemanggil."""
+    text = _clean(_CITE_PAREN.sub("", re.sub(r"^\d{1,2}[.)]\s*", "", _clean(s))))
+    return text if len(re.findall(r"\w+", text)) >= 2 else ""
 
 
 def _list(data: dict, *keys: str, questions: bool = False) -> list[str]:
@@ -47,13 +56,13 @@ def compose(kind: str, data: dict, language: str) -> str:
     en = language == "en"
     lines: list[str] = []
     if kind in ("rq", "rq_obj"):
-        qs = [_clean(re.sub(r"^\d{1,2}[.)]\s*", "", q)).rstrip("?.") + "?" for q in _list(data, "questions", "research_questions", "rumusan_masalah", questions=True) if _clean(q)]
+        qs = [_item(q).rstrip("?.") + "?" for q in _list(data, "questions", "research_questions", "rumusan_masalah", questions=True) if _item(q)]
         if len(qs) < 2:
             raise ValueError("kurang dari 2 rumusan masalah")
         lines += [_clean(data.get("intro")) or ("The research questions of this study are as follows:" if en else "Rumusan masalah penelitian ini adalah sebagai berikut:")]
         lines += [f"{i}. {q}" for i, q in enumerate(qs, 1)]
     if kind in ("objectives", "rq_obj"):
-        objs = [_clean(re.sub(r"^\d{1,2}[.)]\s*", "", o)).rstrip(".") + "." for o in _list(data, "objectives", "research_objectives", "tujuan") if _clean(o)]
+        objs = [_item(o).rstrip(".") + "." for o in _list(data, "objectives", "research_objectives", "tujuan") if _item(o)]
         if len(objs) < 2:
             raise ValueError("kurang dari 2 tujuan penelitian")
         intro = _clean(data.get("objectives_intro") if kind == "rq_obj" else data.get("intro"))
@@ -95,7 +104,7 @@ def compose(kind: str, data: dict, language: str) -> str:
 
 
 async def structured_draft(
-    kind: str, section: dict, context_prompt: str, language: str, markers: list[str], others: list[str]
+    kind: str, section: dict, context_prompt: str, language: str, markers: list[str], others: list[str], mirror_count: int | None = None
 ) -> tuple[str, str]:
     """Kembalikan (naskah, penyedia). Melempar LLMUnavailable bila bentuk wajib tidak bisa dipenuhi."""
     en = language == "en"
@@ -116,7 +125,13 @@ async def structured_draft(
             last = str(exc)
             convo = convo + [{"role": "assistant", "content": raw}, {"role": "user", "content": f"Invalid: {last}. Return the JSON again, complete."}]
             continue
-        text, _ = dedupe_paragraphs(text, others)
+        if kind == "objectives" and mirror_count:
+            got = len(re.findall(r"(?m)^\d{1,2}\. \S", text))
+            if got != mirror_count:
+                last = f"jumlah tujuan harus tepat {mirror_count} (satu per rumusan masalah), bukan {got}"
+                convo = convo + [{"role": "assistant", "content": raw}, {"role": "user", "content": f"Invalid: {last}. Return the JSON again, complete."}]
+                continue
+        text, _ = dedupe_paragraphs(text, [] if (kind == "objectives" and mirror_count) else others)
         items = len(re.findall(r"(?m)^\d{1,2}\. \S", text)) + text.count("[DATA:")
         if items < 2:
             last = "butir wajib hilang karena mengulang subbab lain"
