@@ -3,13 +3,14 @@
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { askConfirm } from "@/components/ui/confirm";
-import { Input } from "@/components/ui/field";
+import { Input, Textarea } from "@/components/ui/field";
 import { Pill } from "@/components/ui/pill";
 import { api, ApiError } from "@/lib/api";
 import { useProject } from "@/lib/store";
 import { countWords } from "@/lib/utils";
-import { ArrowDown, ArrowUp, CornerDownRight, ListTree, Plus, Save, Sparkles, Trash2, X } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { ArrowDown, ArrowUp, ClipboardPaste, CornerDownRight, ListTree, Plus, Save, Sparkles, Trash2, X } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { outlineCounts, parseOutline } from "@/lib/outline-parse";
 
 interface Row {
   key: string;
@@ -59,6 +60,51 @@ export function StructureEditor({ onClose, autoSuggest = false }: { onClose: () 
   const [suggesting, setSuggesting] = useState<"all" | number | null>(null);
   const [suggestNote, setSuggestNote] = useState<string | null>(null);
   const autoRan = useRef(false);
+  const [pasteOpen, setPasteOpen] = useState(false);
+  const [pasteText, setPasteText] = useState("");
+  const [pasteNote, setPasteNote] = useState<string | null>(null);
+  const parsed = useMemo(() => parseOutline(pasteText, chapters.map((c) => c.title)), [pasteText, chapters]);
+
+  const norm = (t: string) => t.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, " ").trim();
+
+  /** Ganti struktur dengan hasil tempelan. Subbab berjudul sama mempertahankan kode lamanya, jadi tulisannya ikut. */
+  const applyPaste = () => {
+    if (!project || parsed.chapters.length === 0) return;
+    const pool = new Map<string, Array<{ code: string; words: number; hasText: boolean }>>();
+    for (const sec of project.sections) {
+      const k = norm(sec.title);
+      pool.set(k, [...(pool.get(k) ?? []), { code: sec.sectionCode, words: sec.targetWords, hasText: countWords(sec.content) > 0 }]);
+    }
+    let matched = 0;
+    const next: Chap[] = parsed.chapters.map((c, ci) => ({
+      key: nextKey(),
+      title: c.title || chapters[ci]?.title || "",
+      rows: c.rows.map((r) => {
+        const hit = pool.get(norm(r.title))?.shift();
+        if (hit) matched += 1;
+        return {
+          key: nextKey(),
+          code: hit?.code ?? null,
+          title: r.title,
+          words: r.words ?? hit?.words ?? (r.level === 2 ? 250 : 400),
+          level: r.level,
+          hasText: hit?.hasText ?? false,
+        };
+      }),
+    }));
+    const keptCodes = new Set(next.flatMap((c) => c.rows.map((r) => r.code).filter(Boolean)));
+    const lost = project.sections.filter((sec) => !keptCodes.has(sec.sectionCode) && countWords(sec.content) > 0);
+    const n = outlineCounts(parsed);
+    setChapters(next);
+    setSuggestNote(null);
+    setError(null);
+    setPasteOpen(false);
+    setPasteNote(
+      `Struktur diganti: ${n.chapters} bab, ${n.sections} subbab, ${n.subsections} sub-subbab. ${matched} subbab berjudul sama mempertahankan tulisannya.` +
+        (lost.length > 0 ? ` ${lost.length} subbab bertulisan tidak ada di tempelan dan akan dihapus saat Simpan (Anda diminta konfirmasi).` : "") +
+        " Belum tersimpan: periksa dulu, lalu tekan Simpan struktur (Batal membatalkan semuanya)."
+    );
+  };
 
   const suggest = async (only: number | null) => {
     if (!project) return;
@@ -184,6 +230,53 @@ export function StructureEditor({ onClose, autoSuggest = false }: { onClose: () 
         <span className="text-[12.5px] text-black/55">Hanya usulan: tidak ada yang tersimpan sebelum Anda menekan Simpan struktur.</span>
       </div>
       {suggestNote && <p className="mt-2 text-[13px] leading-relaxed text-graphite">{suggestNote}</p>}
+      {pasteNote && <p className="mt-2 text-[13px] leading-relaxed text-graphite">{pasteNote}</p>}
+
+      <div className="mt-3">
+        <Button variant="ghost" onClick={() => setPasteOpen((v) => !v)} aria-expanded={pasteOpen}>
+          <ClipboardPaste size={15} /> {pasteOpen ? "Tutup kotak tempel" : "Tempel struktur"}
+        </Button>
+        {pasteOpen && (
+          <div className="mt-3 rounded-card border border-hairline p-3">
+            <label htmlFor="outline-paste" className="text-[13px] font-medium text-black/80">
+              Tempel daftar isi atau struktur dari pedoman/dosen Anda
+            </label>
+            <Textarea
+              id="outline-paste"
+              className="mt-1.5 font-mono text-[13px]"
+              rows={10}
+              value={pasteText}
+              onChange={(e) => setPasteText(e.target.value)}
+              placeholder={"BAB I PENDAHULUAN\n1.1 Latar Belakang\n1.2 Rumusan Masalah\nBAB II KAJIAN PUSTAKA\n2.1 Landasan Teori\n2.1.1 Kecemasan Berbicara\n2.2 Penelitian Terdahulu"}
+            />
+            <p className="mt-1.5 text-[12.5px] leading-relaxed text-black/55">
+              Dikenali otomatis: BAB/CHAPTER (angka romawi atau biasa), nomor 1.1 dan 2.1.1, butir berlekuk atau berpoin. Titik penuntun dan nomor halaman dibuang. Tambahkan <span className="font-mono">(400 kata)</span> di ujung baris untuk menetapkan target kata.
+            </p>
+            {pasteText.trim() && (
+              <div className="mt-2 text-[13px]">
+                {parsed.chapters.length > 0 ? (
+                  <p className="text-black/70">
+                    Terbaca: {outlineCounts(parsed).chapters} bab, {outlineCounts(parsed).sections} subbab, {outlineCounts(parsed).subsections} sub-subbab.
+                  </p>
+                ) : null}
+                {parsed.warnings.map((w) => (
+                  <p key={w} className="text-saffron">
+                    {w}
+                  </p>
+                ))}
+              </div>
+            )}
+            <div className="mt-3 flex flex-wrap gap-2">
+              <Button onClick={applyPaste} disabled={parsed.chapters.length === 0}>
+                Terapkan dan ganti struktur
+              </Button>
+              <Button variant="text" onClick={() => setPasteText("")} disabled={!pasteText}>
+                Kosongkan
+              </Button>
+            </div>
+          </div>
+        )}
+      </div>
 
       <div className="mt-4 space-y-5">
         {chapters.map((c, ci) => (
