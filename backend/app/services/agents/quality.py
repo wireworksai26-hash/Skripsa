@@ -189,19 +189,19 @@ def kind_rules(kind: str | None, language: str, has_data: bool) -> str:
             "Write the Background of the Study as ONE continuous argument, in this order: why the topic matters; the phenomenon/"
             "problem in the field; the key concept(s) briefly; relevant previous studies (cited); the research gap. If it refers to "
             "preliminary observation or interviews, do NOT invent numbers or findings: insert a placeholder such as "
-            "[DATA: result of the preliminary observation/interview with the teacher]. The LAST paragraph is ONE short paragraph stating "
-            "that, based on the phenomena and gap above, the researcher is interested in conducting a study entitled \"<the thesis title>\". "
-            "Nothing may follow it. Do NOT write recap paragraphs ('This background has established...') and do not restate teacher roles, "
-            "definitions, the reason for the design, or practical benefits (those belong to later subsections). If the length target "
-            "is not reached, deepen the argument or previous studies instead of repeating."
+            "[DATA: result of the preliminary observation/interview with the teacher]. END with the research gap. Do NOT write a closing "
+            "paragraph about the researcher's interest in the title (it is appended automatically), and do NOT write recap paragraphs "
+            "('This background has established...'). Do not restate teacher roles, definitions, the reason for the design, or practical "
+            "benefits (those belong to later subsections). If the length target is not reached, deepen the argument or previous studies "
+            "instead of repeating."
             if en
             else "Tulis Latar Belakang sebagai SATU alur argumen berurutan: mengapa topik penting; fenomena/masalah di lapangan; konsep "
             "kunci secara singkat; penelitian terdahulu yang relevan (disitasi); celah penelitian. Bila menyebut observasi/wawancara awal, "
-            "JANGAN mengarang angka atau temuan: sisipkan penanda seperti [DATA: hasil observasi/wawancara awal dengan guru]. Paragraf "
-            "TERAKHIR adalah SATU paragraf pendek yang menyatakan bahwa, berdasarkan fenomena dan celah di atas, peneliti tertarik "
-            "melakukan penelitian berjudul \"<judul skripsi>\". Tidak boleh ada paragraf setelahnya. JANGAN menulis paragraf rangkuman "
-            "('Latar belakang ini telah menunjukkan...') dan jangan mengulang peran guru, definisi, alasan memilih desain, atau manfaat "
-            "praktis (itu isi subbab lain). Bila target panjang belum tercapai, perdalam argumen atau penelitian terdahulu, bukan mengulang."
+            "JANGAN mengarang angka atau temuan: sisipkan penanda seperti [DATA: hasil observasi/wawancara awal dengan guru]. AKHIRI "
+            "dengan celah penelitian. JANGAN menulis paragraf penutup tentang ketertarikan peneliti pada judul (ditambahkan otomatis) dan "
+            "JANGAN menulis paragraf rangkuman ('Latar belakang ini telah menunjukkan...'). Jangan mengulang peran guru, definisi, alasan "
+            "memilih desain, atau manfaat praktis (itu isi subbab lain). Bila target panjang belum tercapai, perdalam argumen atau "
+            "penelitian terdahulu, bukan mengulang."
         ),
     }
     findings_rule = (
@@ -251,7 +251,7 @@ def check_kind(kind: str | None, text: str, chapter_four_without_data: bool = Fa
 
 # ---------- bentuk akhir subbab tertentu (Latar Belakang, Manfaat) ----------
 
-_INTEREST = re.compile(r"(entitled|titled|berjudul|bertajuk|judul)", re.I)
+_INTEREST_WORDS = re.compile(r"(interested|tertarik|entitled|titled|berjudul|bertajuk)", re.I)
 _SUMMARY_OPEN = re.compile(
     r"^\s*(this background has|in summary|in conclusion|to sum up|to summari[sz]e|overall,|taken together|secara keseluruhan|singkatnya|"
     r"kesimpulannya|latar belakang (di atas|ini) telah|dengan demikian,? (latar belakang|manfaat))",
@@ -267,22 +267,29 @@ def drop_summary_tail(text: str) -> str:
     return "\n\n".join(paras)
 
 
-def enforce_closing(text: str, title: str, language: str) -> str:
-    """Latar Belakang ditutup tegas dengan pernyataan ketertarikan peneliti pada judul; paragraf sesudahnya dibuang.
+def _fold(text: str) -> str:
+    return " ".join(re.sub(r"[^a-z0-9]+", " ", text.lower()).split())
 
-    Kalimat penutup hanya berisi judul asli skripsi (bukan data karangan). Bila model sudah menulisnya, semua yang
-    sesudah paragraf itu (rangkuman, pengulangan) dipotong; bila belum, kalimat itu ditambahkan.
+
+def enforce_closing(text: str, title: str, language: str) -> str:
+    """Latar Belakang ditutup dengan pernyataan ketertarikan peneliti pada judul, ditambahkan KODE (bukan ditulis model).
+
+    Yang dibuang hanya paragraf rangkuman ('This background has...') dan paragraf ketertarikan yang ditulis model sendiri
+    (dikenali dari judul skripsi yang dikutip di dalamnya). Isi lain tidak pernah dipotong. Kalimat penutup hanya berisi
+    judul asli skripsi, bukan data karangan.
     """
     paras = paragraphs(text)
     if not paras or not title.strip():
         return text
-    cut = next((i for i in range(len(paras) - 1, -1, -1) if _INTEREST.search(paras[i]) and len(paras[i].split()) <= 90), None)
-    if cut is not None:
-        return "\n\n".join(paras[: cut + 1])
-    paras = [p for p in paras if not _SUMMARY_OPEN.match(p)]
+    head = " ".join(_fold(title).split()[:5])
+
+    def own_closing(p: str) -> bool:
+        return len(p.split()) <= 90 and bool(head) and head in _fold(p) and bool(_INTEREST_WORDS.search(p))
+
+    kept = [p for p in paras if not _SUMMARY_OPEN.match(p) and not own_closing(p)]
     closing = (
         f'Based on the phenomena and the research gap explained above, the researcher is interested in conducting a study entitled "{title.strip()}".'
         if language == "en"
         else f'Berdasarkan fenomena dan celah penelitian yang telah diuraikan, peneliti tertarik melakukan penelitian berjudul "{title.strip()}".'
     )
-    return "\n\n".join(paras + [closing])
+    return "\n\n".join(kept + [closing])

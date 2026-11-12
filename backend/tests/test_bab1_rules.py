@@ -24,16 +24,20 @@ def test_background_kind_only_in_chapter_one():
     assert quality.section_kind("Theoretical Background", "2") is None, "bab lain tidak ikut aturan Latar Belakang"
 
 
-def test_closing_statement_is_enforced_and_recaps_after_it_are_cut():
-    recap = "\n\nThis background has established that the teacher plays a crucial role.\n\nIn summary, scaffolding is practical."
-    closing = f'Based on the phenomena and the gap above, the researcher is interested in conducting a study entitled "{TITLE}".'
-    out = quality.enforce_closing(BACKGROUND + "\n\n" + closing + recap, TITLE, "en")
+def test_closing_is_appended_by_code_and_never_cuts_body_content():
+    body = quality.paragraphs(BACKGROUND)
+    recap = "This background has established that the teacher plays a crucial role.\n\nIn summary, scaffolding is practical."
+    own = f'Based on the phenomena and gap above, the researcher is interested in conducting a study entitled "{TITLE}".'
+    # paragraf tengah yang kebetulan memuat kata "titled" tidak boleh memicu pemotongan isi sesudahnya
+    middle = "Several guidelines use a titled heading for this section, and the discussion continues with many more details here."
+    text = "\n\n".join([body[0], middle, *body[1:], own, recap])
+    out = quality.enforce_closing(text, TITLE, "en")
     paras = quality.paragraphs(out)
-    assert paras[-1] == closing and "established" not in out and "In summary" not in out
-
-    missing = quality.enforce_closing(BACKGROUND + recap, TITLE, "en")
-    last = quality.paragraphs(missing)[-1]
-    assert TITLE in last and "entitled" in last and "In summary" not in missing, "kalimat penutup berisi judul asli, tanpa data karangan"
+    assert paras[-1].startswith("Based on the phenomena and the research gap explained above") and TITLE in paras[-1]
+    assert out.count(TITLE) == 1, "penutup buatan model diganti satu penutup baku"
+    assert "established" not in out and "In summary" not in out, "rangkuman dibuang"
+    assert middle in out and all(p in out for p in body), "isi lain tidak pernah dipotong"
+    assert len(paras) == len(body) + 2, "isi + paragraf tengah + penutup"
     assert "berjudul" in quality.enforce_closing("Paragraf satu.\n\nParagraf dua.", "Judul Skripsi Saya", "id")
 
 

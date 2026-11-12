@@ -19,6 +19,7 @@ import {
   Loader2,
   MoveRight,
   Pencil,
+  Plus,
   RefreshCw,
   Sparkles,
   Wand2,
@@ -113,14 +114,14 @@ export default function DrafPage() {
     setViewer(null);
   };
 
-  const generateMany = async (list: Section[], overwrite: Set<string> = new Set()) => {
+  const generateMany = async (list: Section[], overwrite: Set<string> = new Set(), extend = false) => {
     setError(null);
     setProgress({ done: 0, total: list.length, code: list[0]?.sectionCode ?? "" });
     for (let i = 0; i < list.length; i++) {
       setActiveCode(list[i].sectionCode);
       setProgress({ done: i, total: list.length, code: list[i].sectionCode });
       try {
-        await generateSection(list[i].sectionCode, overwrite.has(list[i].sectionCode));
+        await generateSection(list[i].sectionCode, overwrite.has(list[i].sectionCode), extend);
       } catch (e) {
         setError(`Subbab ${list[i].sectionCode} gagal: ${e instanceof Error ? e.message : e}`);
         break;
@@ -150,6 +151,10 @@ export default function DrafPage() {
     if (!emptyDraft(sec) && !(await askConfirm(`Buat ulang subbab ${sec.sectionCode}? Isi saat ini akan diganti.`, { danger: false }))) return;
     return generateMany([sec]);
   };
+
+  // Perpanjang draf yang kurang dari target tanpa menulis ulang dari nol (aman: versi lama tersimpan di riwayat).
+  const isShort = (s: Section) => s.targetWords > 0 && countWords(s.content) >= 30 && countWords(s.content) < s.targetWords * 0.85;
+  const extendOne = (sec: Section) => generateMany([sec], sec.origin === "IMPORTED" ? new Set([sec.sectionCode]) : new Set(), true);
 
   const onEdit = (code: string, content: string) => {
     editSection(code, content);
@@ -312,6 +317,20 @@ export default function DrafPage() {
                     {generating ? <Loader2 size={13} className="animate-spin" /> : words === 0 ? <Wand2 size={13} /> : <RefreshCw size={13} />}
                     {generating ? "Membuat…" : words === 0 ? "Buat subbab ini" : "Buat ulang"}
                   </Button>
+                  {isShort(s) && (
+                    <Button
+                      className="ml-2"
+                      size="sm"
+                      variant="primary"
+                      disabled={!canGenerate || generating}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        void extendOne(s);
+                      }}
+                    >
+                      <Plus size={13} /> Tambah kata ({s.targetWords - words})
+                    </Button>
+                  )}
                 </div>
               </div>
             );
@@ -326,6 +345,7 @@ export default function DrafPage() {
             canGenerate={canGenerate}
             onEditToggle={() => setEditing((v) => !v)}
             onRegenerate={() => regenerateOne(active)}
+            onExtend={isShort(active) ? () => extendOne(active) : undefined}
             onChange={(content) => onEdit(active.sectionCode, content)}
             onOpenPdf={(citationId, snippet) => setViewer({ citationId, snippet })}
             openCitationId={viewer?.citationId}
@@ -364,6 +384,7 @@ function DocPanel({
   canGenerate,
   onEditToggle,
   onRegenerate,
+  onExtend,
   onChange,
   onOpenPdf,
   openCitationId,
@@ -374,6 +395,7 @@ function DocPanel({
   canGenerate: boolean;
   onEditToggle: () => void;
   onRegenerate: () => void;
+  onExtend?: () => void;
   onChange: (content: string) => void;
   onOpenPdf: (citationId: string, snippet: string) => void;
   openCitationId?: string;
@@ -392,6 +414,11 @@ function DocPanel({
             <Button variant="text" size="sm" onClick={onEditToggle} aria-label="Mode edit">
               <Pencil size={14} />
             </Button>
+            {onExtend && (
+              <Button variant="primary" size="sm" onClick={onExtend} disabled={!canGenerate} aria-label="Tambah kata sampai target">
+                <Plus size={14} /> Tambah kata
+              </Button>
+            )}
             <Button variant={section.content.trim() ? "ghost" : "primary"} size="sm" onClick={onRegenerate} disabled={!canGenerate} aria-label="Buat ulang draf">
               <RefreshCw size={14} /> {section.content.trim() ? "Buat ulang" : "Buat subbab ini"}
             </Button>

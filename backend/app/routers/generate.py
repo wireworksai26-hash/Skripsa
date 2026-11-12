@@ -49,6 +49,7 @@ async def generate_titles(thesis=Depends(owned_thesis), db: Session = Depends(ge
 async def generate_section(
     section_code: str,
     overwrite: bool = False,
+    extend: bool = False,  # perpanjang draf yang sudah ada sampai target kata, tanpa menulis ulang dari nol
     thesis=Depends(owned_thesis),
     db: Session = Depends(get_db),
 ):
@@ -73,6 +74,17 @@ async def generate_section(
         )
         .all()
     )
+    existing_text = (section.content_markdown or "").strip()
+    if extend:
+        from app.services.agents.quality import section_kind
+        from app.services.agents.structured import STRUCTURED_KINDS
+
+        if writer.valid_word_count(existing_text) < 30:
+            raise HTTPException(422, "Subbab ini belum berisi draf yang bisa diperpanjang. Buat subbab ini dulu.")
+        if section_kind(section.section_title, str(section.chapter_code)) in STRUCTURED_KINDS:
+            raise HTTPException(422, "Subbab berbentuk butir (rumusan, tujuan, saran) tidak diperpanjang; gunakan Buat ulang.")
+        if (section.target_words or 0) and writer.valid_word_count(existing_text) >= (section.target_words or 0) * 0.85:
+            raise HTTPException(422, "Draf sudah mencapai target kata. Naikkan target kata di struktur bab bila ingin lebih panjang.")
     template = resolve_template(db, thesis.campus_template_id)
     if not refs_rows:
         raise HTTPException(422, "Pilih minimal satu rujukan (Langkah 3) sebelum membuat draf")
@@ -109,6 +121,7 @@ async def generate_section(
             "other_texts": other_texts(thesis.sections, section.section_code),
             "results_data": results_data(thesis),
             **mirror_fields(thesis, section),
+            "extend_from": existing_text if extend else "",
         },
         ref_dicts,
         template.get("citation_style", "APA_7TH"),
@@ -120,9 +133,15 @@ async def generate_section(
     old_content = section.content_markdown
     from app.routers.revise import snapshot
 
-    snapshot(db, section, "buat ulang")
+    snapshot(db, section, "tambah kata" if extend else "buat ulang")
     section.content_markdown = draft["content"]
-    section.citations_json = draft["citations"]
+    if extend:  # sitasi lama tetap berlaku untuk paragraf lama; tambahkan yang baru
+        merged = {c.get("reference_id"): c for c in (section.citations_json or [])}
+        for c in draft["citations"]:
+            merged.setdefault(c.get("reference_id"), c)
+        section.citations_json = [c for c in merged.values() if c.get("marker") and c["marker"] in draft["content"] or not c.get("marker")]
+    else:
+        section.citations_json = draft["citations"]
     from app.services.insights import record_words
 
     record_words(db, thesis.user_id, writer.valid_word_count(draft["content"]) - (section.word_count or 0))

@@ -845,13 +845,14 @@ export const api = {
   generateSection: async (
     id: string,
     code: string,
-    overwrite = false
+    overwrite = false,
+    extend = false
   ): Promise<{ content: string; citations: InlineCitation[]; provider: string }> => {
     const r = await request<{
       content_markdown: string;
       citations_json: ServerSection["citations_json"];
       provider: string;
-    }>(`/theses/${id}/sections/${encodeURIComponent(code)}/generate${overwrite ? "?overwrite=true" : ""}`, { method: "POST", body: {} });
+    }>(`/theses/${id}/sections/${encodeURIComponent(code)}/generate?${[overwrite ? "overwrite=true" : "", extend ? "extend=true" : ""].filter(Boolean).join("&")}`, { method: "POST", body: {} });
     return { content: r.content_markdown, citations: r.citations_json.map(mapCitation), provider: r.provider };
   },
 

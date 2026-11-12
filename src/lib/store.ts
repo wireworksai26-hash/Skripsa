@@ -102,7 +102,7 @@ interface ProjectState {
   selectAllRefs: (on: boolean) => Promise<void>;
 
   ensureSections: () => Promise<void>;
-  generateSection: (code: string, overwrite?: boolean) => Promise<void>;
+  generateSection: (code: string, overwrite?: boolean, extend?: boolean) => Promise<void>;
   editSection: (code: string, content: string) => void;
   persistSection: (code: string) => Promise<void>;
 
@@ -311,9 +311,9 @@ export const useProject = create<ProjectState>()(
           patch(() => ({ sections }));
         },
 
-        generateSection: async (code, overwrite = false) => {
+        generateSection: async (code, overwrite = false, extend = false) => {
           const p = current();
-          const r = await api.generateSection(p.id, code, overwrite);
+          const r = await api.generateSection(p.id, code, overwrite, extend);
           patch((cur) => ({
             sections: cur.sections.map((s) =>
               s.sectionCode === code ? { ...s, content: r.content, citations: r.citations, provider: r.provider, origin: "GENERATED" } : s

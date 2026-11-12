@@ -1,3 +1,4 @@
+import json
 import re
 
 from app.services.agents.context import form_keywords
@@ -121,6 +122,24 @@ def _salvage_content(raw: str) -> str:
         .replace("\\t", "\t")
         .replace('\\"', '"')
         .strip()
+    )
+
+
+CHUNK_WORDS = 450
+
+
+def _continuation_prompt(content: str, words: int, target_words: int, language: str) -> str:
+    """Permintaan lanjutan per potongan. Model jauh lebih patuh pada ~300-450 kata per panggilan daripada 'tambah 800 kata'."""
+    need = target_words - words
+    chunk = min(int(need * 1.25) + 20, CHUNK_WORDS)
+    covered = "; ".join(" ".join(p.split()[:12]) + "…" for p in re.split(r"\n\s*\n|\n", content) if p.strip())
+    return (
+        f"Draf sementara baru {words} kata dari target {target_words} (kurang {need} kata). "
+        f"Bagian yang SUDAH ada membahas: {covered}. "
+        f"LANJUTKAN dengan sekitar {chunk} kata (2-4 paragraf baru) tentang aspek yang BELUM dibahas; jangan mengulang atau merangkum. "
+        "Tetap memakai penanda sitasi yang diberikan. "
+        'Balas JSON yang sama, tetapi "content" berisi HANYA bagian lanjutan.'
+        + (" Write the continuation in English." if language == "en" else "")
     )
 
 
@@ -274,6 +293,8 @@ async def generate_section_draft(
         return {"content": content, "citations": list(kept.values())}, provider
 
     max_tokens = min(4096, max(2400, int(target_words * 2.2) + 800))
+    # Satu putaran awal + lanjutan; target panjang butuh lebih banyak putaran (batas 12).
+    max_rounds = min(12, max(6, -(-target_words // 200) + 2)) if target_words else 5
     names: list[str | None] = [p.name for p in route("heavy")] or [None]
     failures: list[str] = []
     for name in names:
@@ -285,7 +306,14 @@ async def generate_section_draft(
         kind_fails = 0
         replace_next = False  # tulis ulang utuh karena bentuk subbab salah
         last_provider = name or "llm"
-        for _ in range(5):
+        extend_base = (form.get("extend_from") or "").strip()
+        if extend_base:  # perpanjang draf yang sudah ada alih-alih menulis ulang dari nol
+            content = extend_base
+            convo += [
+                {"role": "assistant", "content": json.dumps({"content": extend_base, "citations": []}, ensure_ascii=False)},
+                {"role": "user", "content": _continuation_prompt(content, valid_word_count(content), target_words, language)},
+            ]
+        for _ in range(max_rounds):
             try:
                 raw, provider = await llm_chat_ex(convo, tier="heavy", max_tokens=max_tokens, only=name)
                 last_provider = provider
@@ -348,19 +376,9 @@ async def generate_section_draft(
                             convo = convo + [{"role": "assistant", "content": raw}, {"role": "user", "content": problem}]
                             continue
                         return finish(content, cites, provider)
-                    need = target_words - words
                     convo = convo + [
                         {"role": "assistant", "content": raw},
-                        {
-                            "role": "user",
-                            "content": (
-                                f"Draf sementara baru {words} kata dari target {target_words}. "
-                                f"LANJUTKAN tanpa mengulang kalimat yang sudah ada: tambahkan minimal {need} kata "
-                                "(2-4 paragraf baru) yang memperdalam argumen subbab ini, tetap memakai penanda "
-                                'sitasi yang diberikan. Balas JSON yang sama, tetapi "content" berisi HANYA bagian lanjutan.'
-                                + (" Write the continuation in English." if language == "en" else "")
-                            ),
-                        },
+                        {"role": "user", "content": _continuation_prompt(content, words, target_words, language)},
                     ]
                     continue
 
