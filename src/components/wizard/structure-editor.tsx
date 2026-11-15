@@ -33,6 +33,7 @@ const nextKey = () => `k${++seq}`;
 
 /** Editor struktur bab per proyek: tambah, hapus, ganti nama, urutkan, dan jadikan anak (2.1.1). */
 const PARENT_INTRO_WORDS = 150;
+const clampWords = (n: number) => Math.max(50, Math.min(4000, Math.round(n) || 50));
 
 export function StructureEditor({ onClose, autoSuggest = false }: { onClose: () => void; autoSuggest?: boolean }) {
   const project = useProject((s) => s.project);
@@ -180,6 +181,7 @@ export function StructureEditor({ onClose, autoSuggest = false }: { onClose: () 
   // Subbab tingkat 2 tidak boleh berada di awal bab (belum ada induk).
   const invalid = chapters.findIndex((c) => c.rows[0]?.level === 2);
   const empty = chapters.some((c) => !c.title.trim() || c.rows.some((r) => !r.title.trim()));
+  const totalTarget = chapters.reduce((a, c) => a + c.rows.reduce((b, r) => b + (Number(r.words) || 0), 0), 0);
   const kept = new Set(chapters.flatMap((c) => c.rows.map((r) => r.code).filter(Boolean)));
   const removedWithText = project.sections.filter((s) => !kept.has(s.sectionCode) && countWords(s.content) > 0);
 
@@ -195,9 +197,10 @@ export function StructureEditor({ onClose, autoSuggest = false }: { onClose: () 
     setBusy(true);
     setError(null);
     try {
+      const normalized = chapters.map((c) => ({ ...c, rows: c.rows.map((r) => ({ ...r, words: clampWords(r.words) })) }));
       await api.saveStructure(
         project.id,
-        chapters.map((c) => ({ title: c.title.trim(), sections: c.rows.map((r) => ({ code: r.code, title: r.title.trim(), target_words: r.words, level: r.level })) })),
+        normalized.map((c) => ({ title: c.title.trim(), sections: c.rows.map((r) => ({ code: r.code, title: r.title.trim(), target_words: r.words, level: r.level })) })),
         removedWithText.length > 0
       );
       await reload();
@@ -218,10 +221,14 @@ export function StructureEditor({ onClose, autoSuggest = false }: { onClose: () 
           <ListTree size={12} /> Struktur bab
         </Pill>
         <Pill>{chapters.reduce((a, c) => a + c.rows.length, 0)} subbab</Pill>
+        <Pill>±{totalTarget.toLocaleString("id-ID")} kata</Pill>
       </div>
       <h2 className="t-heading-sm mt-3">Atur struktur sesuai pembimbing Anda</h2>
       <p className="mt-1 text-[13px] leading-relaxed text-graphite">
         Tambah, hapus, ganti nama, dan urutkan subbab. Tombol <CornerDownRight size={12} className="inline" /> menjadikan subbab sebagai anak (mis. 2.1.1). Tulisan pada subbab yang dipertahankan ikut pindah ke nomor barunya.
+      </p>
+      <p className="mt-1 text-[12.5px] leading-relaxed text-black/45">
+        Ketik target kata langsung di kolom <span className="font-medium text-black/60">Target</span> (50–4000). Tidak harus kelipatan 50.
       </p>
       <div className="mt-3 flex flex-wrap items-center gap-2">
         <Button variant="ghost" loading={suggesting === "all"} disabled={suggesting !== null || busy} onClick={() => suggest(null)}>
@@ -305,7 +312,7 @@ export function StructureEditor({ onClose, autoSuggest = false }: { onClose: () 
 
             <ul className="mt-2 space-y-1.5">
               {c.rows.map((r, ri) => (
-                <li key={r.key} className={`flex items-center gap-1.5 ${r.level === 2 ? "pl-6 sm:pl-10" : ""}`}>
+                <li key={r.key} className={`flex flex-wrap items-center gap-1.5 rounded-btn py-1 sm:py-0 ${r.level === 2 ? "pl-4 sm:pl-10" : ""}`}>
                   <button
                     className={`${iconBtn} ${r.level === 2 ? "bg-sky-tint text-brand" : ""}`}
                     aria-label={r.level === 2 ? "Jadikan subbab tingkat 1" : "Jadikan anak dari subbab di atasnya"}
@@ -316,27 +323,41 @@ export function StructureEditor({ onClose, autoSuggest = false }: { onClose: () 
                     <CornerDownRight size={15} />
                   </button>
                   {r.ai && <span className="shrink-0 rounded-full bg-sky-tint px-2 py-0.5 text-[11px] font-medium text-brand">AI</span>}
-                  <Input aria-label="Judul subbab" value={r.title} onChange={(e) => setRow(ci, ri, { title: e.target.value })} />
-                  <input
-                    aria-label="Target kata"
-                    type="number"
-                    inputMode="numeric"
-                    min={50}
-                    max={4000}
-                    step={50}
-                    value={r.words}
-                    onChange={(e) => setRow(ci, ri, { words: Math.max(50, Math.min(4000, Number(e.target.value) || 50)) })}
-                    className="hidden h-11 w-20 shrink-0 rounded-btn border border-hairline bg-white px-2 text-base sm:block lg:text-[14px]"
-                  />
-                  <button className={iconBtn} aria-label="Naikkan" disabled={ri === 0} onClick={() => setChap(ci, (x) => ({ ...x, rows: move(x.rows, ri, -1) }))}>
-                    <ArrowUp size={15} />
-                  </button>
-                  <button className={iconBtn} aria-label="Turunkan" disabled={ri === c.rows.length - 1} onClick={() => setChap(ci, (x) => ({ ...x, rows: move(x.rows, ri, 1) }))}>
-                    <ArrowDown size={15} />
-                  </button>
-                  <button className={`${iconBtn} text-vermillion`} aria-label="Hapus subbab" onClick={() => setChap(ci, (x) => ({ ...x, rows: x.rows.filter((_, i) => i !== ri) }))}>
-                    <X size={15} />
-                  </button>
+                  <Input className="min-w-0 flex-1 basis-48" aria-label="Judul subbab" value={r.title} onChange={(e) => setRow(ci, ri, { title: e.target.value })} />
+                  <label className="flex shrink-0 items-center gap-1 text-[12px] text-black/55">
+                    <span className="whitespace-nowrap">Target</span>
+                    <input
+                      aria-label="Target kata"
+                      type="number"
+                      inputMode="numeric"
+                      min={50}
+                      max={4000}
+                      step={1}
+                      value={r.words || ""}
+                      onFocus={(e) => e.currentTarget.select()}
+                      onChange={(e) => {
+                        const n = Number(e.target.value);
+                        setRow(ci, ri, { words: Number.isFinite(n) ? Math.max(0, Math.min(4000, Math.floor(n))) : 0 });
+                      }}
+                      onBlur={() => setRow(ci, ri, { words: clampWords(r.words) })}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") e.currentTarget.blur();
+                      }}
+                      className="h-9 w-16 shrink-0 rounded-btn border border-hairline bg-white px-1.5 text-center text-[13px] tabular-nums outline-none focus:border-brand focus:ring-2 focus:ring-brand/15 sm:h-11 sm:w-20 sm:px-2 sm:text-base lg:text-[14px]"
+                    />
+                    <span className="whitespace-nowrap">kata</span>
+                  </label>
+                  <div className="flex items-center gap-0.5 sm:gap-1">
+                    <button className={iconBtn} aria-label="Naikkan" disabled={ri === 0} onClick={() => setChap(ci, (x) => ({ ...x, rows: move(x.rows, ri, -1) }))}>
+                      <ArrowUp size={15} />
+                    </button>
+                    <button className={iconBtn} aria-label="Turunkan" disabled={ri === c.rows.length - 1} onClick={() => setChap(ci, (x) => ({ ...x, rows: move(x.rows, ri, 1) }))}>
+                      <ArrowDown size={15} />
+                    </button>
+                    <button className={`${iconBtn} text-vermillion`} aria-label="Hapus subbab" onClick={() => setChap(ci, (x) => ({ ...x, rows: x.rows.filter((_, i) => i !== ri) }))}>
+                      <X size={15} />
+                    </button>
+                  </div>
                 </li>
               ))}
             </ul>
