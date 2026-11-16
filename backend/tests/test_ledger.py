@@ -117,3 +117,39 @@ def test_track_upload_reads_a_real_docx(client, auth):
     r = client.post(f"/theses/{tid}/citation-ledger/track", headers=h, files={"file": ("final.docx", buf.getvalue(), "application/octet-stream")})
     assert r.status_code == 200, r.text
     assert r.json()["summary"]["tracked"] == 1 and r.json()["filename"] == "final.docx"
+
+
+def test_enrich_fills_missing_abstracts_only_when_found_and_flags_refs_without_evidence(client, auth, monkeypatch):
+    from app.services import abstracts
+
+    h = auth["headers"]
+    tid, cites = _thesis(client, h, " enr1")
+    bare = client.post(
+        f"/theses/{tid}/citations", headers=h,
+        json=[
+            {"title": "Optimizing Scaffolding to Improve Writing", "authors": ["Nurlatifah, L."], "publication_year": 2024, "highlighted_snippet": "", "source_database": "BibTeX", "doi": "10.19166/pji.v20i2.8139"},
+            {"title": "A Book Without Any Abstract Anywhere", "authors": ["Buku, B."], "publication_year": 2010, "highlighted_snippet": "", "source_database": "BibTeX"},
+        ],
+    ).json()
+    client.patch(f"/theses/{tid}", headers=h, json={"selected_ref_ids": [c["citation_id"] for c in cites + bare]})
+    code = client.get(f"/theses/{tid}", headers=h).json()["sections"][0]["section_code"]
+    client.patch(f"/theses/{tid}/sections/{code}", headers=h, json={"content_markdown": "Scaffolding was tested in two cycles (Nurlatifah, 2024)."})
+
+    before = client.get(f"/theses/{tid}/citation-ledger", headers=h).json()
+    assert before["totals"]["no_evidence"] == 2 and before["totals"]["no_evidence_uses"] == 1
+
+    async def fake(ref):
+        if ref["doi"]:
+            return "Classroom action research in two cycles improved the writing of analytical exposition texts among senior high school students.", "OpenAlex"
+        return "", ""
+
+    monkeypatch.setattr(abstracts, "fetch_abstract", fake)
+    r = client.post(f"/theses/{tid}/citations/enrich", headers=h)
+    assert r.status_code == 200, r.text
+    out = r.json()
+    assert out["checked"] == 2 and [u["title"] for u in out["updated"]] == ["Optimizing Scaffolding to Improve Writing"] and out["not_found"] == ["A Book Without Any Abstract Anywhere"]
+    after = client.get(f"/theses/{tid}/citation-ledger", headers=h).json()
+    assert after["totals"]["no_evidence"] == 1 and after["totals"]["no_evidence_uses"] == 0
+    entry = next(e for e in after["entries"] if e["authors"][0].startswith("Nurlatifah"))
+    assert "two cycles" in entry["evidence"] and entry["no_evidence"] is False
+    assert client.post(f"/theses/{tid}/citations/enrich", headers=h).json()["checked"] == 1, "yang sudah terisi tidak diambil ulang"

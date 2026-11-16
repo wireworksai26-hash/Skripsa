@@ -32,11 +32,18 @@ def test_retrieve_ranks_relevant_ref_first_with_real_sentences():
     assert "motivasi belajar siswa" in out[0]["evidence"][0].lower()
 
 
-def test_retrieve_caps_refs_and_keeps_refs_without_abstract_evidence_empty():
+def test_retrieve_caps_refs_and_never_offers_refs_without_abstract_when_others_have_evidence():
     many = [{"citation_id": f"r{i}", "title": f"Judul {i}", "highlighted_snippet": ABS_GAME} for i in range(10)]
     assert len(rag.retrieve(many, "game edukatif", max_refs=4)) == 4
     out = {r["citation_id"]: r for r in rag.retrieve(refs(), "pasar saham")}
-    assert out["kosong"]["evidence"] == []
+    assert "kosong" not in out, "rujukan tanpa abstrak tidak boleh jadi dasar klaim (model terbukti mengarang dari nama/judul)"
+    assert set(out) == {"saham", "game"}
+
+
+def test_retrieve_keeps_refs_without_evidence_only_when_nothing_has_any():
+    only_empty = [{"citation_id": "kosong", "title": "Artikel Tanpa Abstrak", "highlighted_snippet": ""}]
+    out = rag.retrieve(only_empty, "apa saja")
+    assert [r["citation_id"] for r in out] == ["kosong"] and out[0]["evidence"] == []
 
 
 def test_is_from_abstract_ignores_punctuation_but_rejects_invention():
@@ -69,7 +76,7 @@ def test_prompt_contains_abstract_evidence_not_just_titles(monkeypatch):
     user = seen[0][-1]["content"]
     assert 'BUKTI: "' in user
     assert "empat puluh siswa" in user or "motivasi belajar siswa secara signifikan" in user
-    assert "abstrak tidak tersedia" in user, "rujukan tanpa abstrak ditandai, tidak boleh jadi dasar klaim"
+    assert "Artikel Tanpa Abstrak" not in user, "rujukan tanpa abstrak tidak ditawarkan kepada penulis"
 
 
 def test_fabricated_snippet_is_replaced_by_real_abstract_sentence(monkeypatch):

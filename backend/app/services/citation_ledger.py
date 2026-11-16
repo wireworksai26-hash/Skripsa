@@ -117,6 +117,7 @@ def _ref_view(c: Citation, style: str, number: int) -> dict:
         "source": c.source_database or "",
         "page": c.page_number or 1,
         "evidence": (c.highlighted_snippet or "").strip(),
+        "no_evidence": not (c.highlighted_snippet or "").strip(),
         "uses": [],
     }
 
@@ -165,7 +166,7 @@ def build(refs: list[Citation], sections: list[dict], style: str, grounding: dic
         "style": style,
         "entries": entries,
         "unmatched": list(unmatched.values())[:80],
-        "totals": {"references": len(entries), "cited": sum(1 for e in entries if e["uses"]), "uncited": sum(1 for e in entries if not e["uses"]), "uses": sum(len(e["uses"]) for e in entries)},
+        "totals": {"references": len(entries), "cited": sum(1 for e in entries if e["uses"]), "uncited": sum(1 for e in entries if not e["uses"]), "uses": sum(len(e["uses"]) for e in entries), "no_evidence": sum(1 for e in entries if e["no_evidence"]), "no_evidence_uses": sum(len(e["uses"]) for e in entries if e["no_evidence"])},
     }
 
 

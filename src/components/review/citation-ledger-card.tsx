@@ -40,6 +40,7 @@ export function CitationLedgerCard() {
   const [mode, setMode] = useState<Mode>("platform");
   const [busy, setBusy] = useState(false);
   const [verifying, setVerifying] = useState(false);
+  const [enriching, setEnriching] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [note, setNote] = useState<string | null>(null);
   const [ledgers, setLedgers] = useState<Record<Mode, CitationLedger | null>>({ platform: null, upload: null });
@@ -95,6 +96,26 @@ export function CitationLedgerCard() {
       setError(e instanceof Error ? e.message : "Verifikasi gagal");
     } finally {
       setVerifying(false);
+    }
+  };
+
+  const enrich = async () => {
+    setEnriching(true);
+    setError(null);
+    setNote(null);
+    try {
+      const r = await api.enrichEvidence(project.id);
+      setNote(
+        r.updated.length > 0
+          ? `${r.updated.length} rujukan kini punya bukti abstrak (dari ${Array.from(new Set(r.updated.map((u) => u.source))).join(", ")}); ${r.not_found.length} tidak ditemukan abstraknya.`
+          : `Abstrak tidak ditemukan untuk ${r.not_found.length} rujukan. Buku atau karya tanpa DOI sering tidak punya abstrak di basis data.`
+      );
+      if (mode === "upload") await track();
+      else await loadPlatform();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Pengambilan bukti gagal");
+    } finally {
+      setEnriching(false);
     }
   };
 
@@ -206,6 +227,19 @@ export function CitationLedgerCard() {
               <FileSpreadsheet size={14} /> Unduh .csv (Excel)
             </Button>
           </div>
+
+          {ledger.totals.no_evidence > 0 && (
+            <Group title={`${ledger.totals.no_evidence} rujukan tidak punya bukti abstrak${ledger.totals.no_evidence_uses > 0 ? `, dikutip ${ledger.totals.no_evidence_uses}× di naskah` : ""}`} tone={ledger.totals.no_evidence_uses > 0 ? "bad" : "warn"}>
+              <p>
+                Rujukan hasil impor BibTeX/RIS sering tanpa abstrak. Tanpa bukti, isi kutipannya tidak bisa diverifikasi dan tidak ada cuplikan untuk dijawab saat ditanya. Penulis agen tidak lagi memakainya untuk klaim selama ada rujukan berbukti.
+              </p>
+              <Button size="sm" variant="ghost" loading={enriching} onClick={() => void enrich()}>
+                {!enriching && <ShieldCheck size={14} />} Ambil abstrak dari OpenAlex/Crossref
+              </Button>
+              <p className="text-black/50">Hanya abstrak asli yang diambil (lewat DOI, atau judul+penulis+tahun yang cocok). Tidak ada yang dikarang.</p>
+              {ledger.totals.no_evidence_uses > 0 && <p className="text-black/60">Kutipan dari rujukan tanpa bukti perlu Anda cek langsung ke artikelnya sebelum sidang.</p>}
+            </Group>
+          )}
 
           {(ledger.missing?.length ?? 0) > 0 && (
             <Group title={`${ledger.missing!.length} kutipan tidak ada di daftar pustaka maupun grounding`} tone="bad">

@@ -323,6 +323,7 @@ export interface LedgerEntry {
   source: string;
   page: number;
   evidence: string;
+  no_evidence: boolean;
   uses: LedgerUse[];
   status: "cited" | "uncited";
   in_bibliography?: boolean;
@@ -339,13 +340,19 @@ export interface CitationLedger {
   style: string;
   entries: LedgerEntry[];
   unmatched: LedgerUnmatched[];
-  totals: { references: number; cited: number; uncited: number; uses: number };
+  totals: { references: number; cited: number; uncited: number; uses: number; no_evidence: number; no_evidence_uses: number };
   filename?: string;
   warnings?: string[];
   summary?: { in_text: number; tracked: number; year_mismatch: number; unverified: number; missing: number; grounded_refs: number };
   unverified?: Array<{ bibliography_entry: string; markers: string[]; uses: LedgerUse[] }>;
   missing?: Array<{ text: string; uses: LedgerUse[]; bibliography_entry: string }>;
   bibliography?: { found: boolean; entries: number; matched: number; unmatched: string[]; never_cited: string[] };
+}
+
+export interface EnrichResult {
+  checked: number;
+  updated: Array<{ title: string; source: string }>;
+  not_found: string[];
 }
 
 export interface LedgerVerifyResult {

@@ -112,7 +112,7 @@ def _similarity(a: str, b: str) -> float:
     sa, sb = " ".join(fold(a).split()), " ".join(fold(b).split())
     short, long_ = (sa, sb) if len(sa) <= len(sb) else (sb, sa)
     # Judul vs judul + subjudul ("Judul: Subjudul"). Tambahan kata biasa ("... in Practice") berarti karya lain.
-    if len(compact(short)) >= 15 and long_.startswith(short) and long_[len(short) :].lstrip()[:1] in {":", "-", "–", "—", "("}:
+    if len(compact(short)) >= 15 and long_.startswith(short) and long_[len(short) :].lstrip()[:1] in {":", "-", "–", "—", "(", "["}:  # "[" = terjemahan judul dalam kurung siku
         return 0.95
     return SequenceMatcher(None, ca, cb).ratio()
 

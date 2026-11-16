@@ -50,7 +50,9 @@ def retrieve(refs: list[dict], query: str, max_refs: int = 6, passages_per_ref: 
         if sentence and len(entry["evidence"]) < passages_per_ref:
             entry["evidence"].append(sentence)
 
-    out = []
-    for cid, entry in sorted(ranked.items(), key=lambda kv: kv[1]["score"], reverse=True)[:max_refs]:
-        out.append({**by_id[cid], "evidence": entry["evidence"], "rag_score": entry["score"]})
-    return out
+    ordered = sorted(ranked.items(), key=lambda kv: kv[1]["score"], reverse=True)
+    # Rujukan tanpa abstrak tidak punya bukti untuk dikutip; model terbukti tetap mengarang klaim darinya. Jangan ditawarkan
+    # selama masih ada rujukan berbukti (hanya bila tak ada satu pun, tetap dikembalikan agar draf tidak ditolak).
+    if any(e["evidence"] for _, e in ordered):
+        ordered = [(cid, e) for cid, e in ordered if e["evidence"]]
+    return [{**by_id[cid], "evidence": e["evidence"], "rag_score": e["score"]} for cid, e in ordered[:max_refs]]

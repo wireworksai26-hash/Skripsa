@@ -7,6 +7,7 @@ import type {
   CitationAudit,
   CitationLedger,
   LedgerVerifyResult,
+  EnrichResult,
   AiStyleReport,
   WebCheckReport,
   Brief,
@@ -722,6 +723,7 @@ export const api = {
 
   slidePlan: (id: string) => request<{ slides: SlidePlanItem[]; provider: string }>(`/theses/${id}/slides/plan`, { method: "POST", body: {} }),
   citationAudit: (id: string) => request<CitationAudit>(`/theses/${id}/citation-audit`),
+  enrichEvidence: (id: string) => request<EnrichResult>(`/theses/${id}/citations/enrich`, { body: {} }),
   citationLedger: (id: string) => request<CitationLedger>(`/theses/${id}/citation-ledger`),
   verifyLedgerEntries: (id: string, entries: string[]) => request<LedgerVerifyResult>(`/theses/${id}/citation-ledger/verify`, { body: { entries } }),
   trackUpload: async (id: string, file: File): Promise<CitationLedger> => {

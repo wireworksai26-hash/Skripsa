@@ -9,7 +9,7 @@ from app.core.deps import auth_required, owned_thesis
 from app.core.ratelimit import limit_user
 from app.models.models import Citation, SectionVersion, ShareComment, Thesis, User
 from app.core.ratelimit import limit_user
-from app.services import citation_audit, citation_ledger, foundational, insights, integrity, refs_io
+from app.services import abstracts, citation_audit, citation_ledger, foundational, insights, integrity, refs_io
 from app.services.agents import documents
 from app.services.agents.documents import GenerationError
 import secrets
@@ -198,6 +198,31 @@ async def citation_ledger_track(file: UploadFile = File(...), thesis: Thesis = D
         return citation_ledger.track_upload(thesis, db, file.filename or "naskah", data)
     except ParseError as exc:
         raise HTTPException(exc.status, str(exc))
+
+
+@router.post("/{thesis_id}/citations/enrich")
+async def enrich_evidence(thesis: Thesis = Depends(owned_thesis), db: Session = Depends(get_db)):
+    """Ambil abstrak (bukti grounding) untuk rujukan yang belum punya, lewat DOI/judul di OpenAlex dan Crossref."""
+    import asyncio
+
+    limit_user(thesis.user_id, "enrich-evidence", 6, 60)
+    rows = [c for c in db.query(Citation).filter(Citation.thesis_id == thesis.thesis_id).all() if not (c.highlighted_snippet or "").strip()][:30]
+    gate = asyncio.Semaphore(4)
+
+    async def one(c: Citation) -> tuple[str, str]:
+        async with gate:
+            return await abstracts.fetch_abstract({"doi": c.doi, "title": c.title, "authors": c.authors or [], "publication_year": c.publication_year})
+
+    found = await asyncio.gather(*[one(c) for c in rows])
+    updated, missing = [], []
+    for c, (text, source) in zip(rows, found):
+        if text:
+            c.highlighted_snippet = text[:4000]
+            updated.append({"title": c.title, "source": source})
+        else:
+            missing.append(c.title)
+    db.commit()
+    return {"checked": len(rows), "updated": updated, "not_found": missing}
 
 
 class VerifyIn(BaseModel):

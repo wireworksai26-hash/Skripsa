@@ -62,6 +62,7 @@ export function LedgerList({ entries }: { entries: LedgerEntry[] }) {
                   <span className="block text-[13px] font-medium text-ink">{e.short}</span>
                   <span className="mt-0.5 line-clamp-2 block text-[12px] text-black/60">{e.title}</span>
                 </span>
+                {e.no_evidence && <Pill tone="coral">tanpa bukti</Pill>}
                 {e.status === "cited" ? <Pill tone="green">{e.uses.length}× dikutip</Pill> : <Pill tone="yellow">belum dikutip</Pill>}
                 <ChevronDown size={15} className={cn("mt-1 shrink-0 text-black/40 transition-transform", isOpen && "rotate-180")} />
               </button>
@@ -83,7 +84,7 @@ export function LedgerList({ entries }: { entries: LedgerEntry[] }) {
                   </div>
                   <div>
                     <p className="text-[12px] font-semibold uppercase tracking-wide text-black/45">Bukti grounding</p>
-                    <p className="mt-1 rounded-btn border border-hairline bg-white p-2.5 italic leading-relaxed text-black/75">{e.evidence ? `“${e.evidence}”` : "Tidak ada cuplikan tersimpan untuk rujukan ini."}</p>
+                    <p className={cn("mt-1 rounded-btn border bg-white p-2.5 leading-relaxed", e.evidence ? "border-hairline italic text-black/75" : "border-vermillion/30 text-vermillion")}>{e.evidence ? `“${e.evidence}”` : "Tidak ada abstrak tersimpan, jadi isi klaim dari rujukan ini belum bisa diverifikasi. Gunakan tombol Ambil abstrak, atau cek artikelnya langsung."}</p>
                   </div>
                   <div>
                     <p className="text-[12px] font-semibold uppercase tracking-wide text-black/45">Dikutip di</p>
