@@ -1,6 +1,6 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Body, Depends, HTTPException, Response
+from fastapi import APIRouter, Body, Depends, File, HTTPException, Response, UploadFile
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
@@ -9,7 +9,7 @@ from app.core.deps import auth_required, owned_thesis
 from app.core.ratelimit import limit_user
 from app.models.models import Citation, SectionVersion, ShareComment, Thesis, User
 from app.core.ratelimit import limit_user
-from app.services import citation_audit, foundational, insights, integrity, refs_io
+from app.services import citation_audit, citation_ledger, foundational, insights, integrity, refs_io
 from app.services.agents import documents
 from app.services.agents.documents import GenerationError
 import secrets
@@ -144,12 +144,17 @@ async def foundational_refs(thesis: Thesis = Depends(owned_thesis), db: Session 
     if not theory:
         raise HTTPException(422, "Isian Teori masih kosong. Isi di Langkah 1 (Mode lanjutan), satu rujukan per baris.")
     result = await foundational.resolve_all(theory)
+    found, new_count = _store_found(thesis, db, result["found"], "Teori")
+    return {"found": found, "added": new_count, "not_found": result["not_found"], "unparsed": result["unparsed"]}
 
+
+def _store_found(thesis: Thesis, db: Session, items: list[dict], label: str) -> tuple[list[dict], int]:
+    """Simpan hanya karya yang benar-benar ditemukan di OpenAlex/Crossref; duplikat (DOI/judul) dipakai ulang."""
     rows = db.query(Citation).filter(Citation.thesis_id == thesis.thesis_id).all()
     by_doi = {c.doi: c for c in rows if c.doi}
     by_title = {c.title.strip().lower(): c for c in rows}
     found, new_count = [], 0
-    for item in result["found"]:
+    for item in items:
         r = item["ref"]
         existing = (by_doi.get(r.get("doi")) if r.get("doi") else None) or by_title.get(str(r["title"]).strip().lower())
         if existing:
@@ -160,7 +165,7 @@ async def foundational_refs(thesis: Thesis = Depends(owned_thesis), db: Session 
             publication_year=r.get("publication_year") or 0, journal_name=r.get("journal_name"),
             volume_issue=r.get("volume_issue"), page_range=r.get("page_range"), pdf_url=r.get("pdf_url"),
             highlighted_snippet=r.get("highlighted_snippet") or "", cited_by=r.get("cited_by") or 0,
-            source_database=f"Teori · {r.get('source_database') or 'basis data'}"[:50],
+            source_database=f"{label} · {r.get('source_database') or 'basis data'}"[:50],
         )
         db.add(c)
         db.flush()
@@ -170,7 +175,43 @@ async def foundational_refs(thesis: Thesis = Depends(owned_thesis), db: Session 
         new_count += 1
         found.append({**_citation_dict(c), "already": False, "entry": item["entry"]["raw"], "note": item.get("note", "")})
     db.commit()
-    return {"found": found, "added": new_count, "not_found": result["not_found"], "unparsed": result["unparsed"]}
+    return found, new_count
+
+
+# ---------- buku bukti sitasi & pelacakan naskah jadi ----------
+
+
+@router.get("/{thesis_id}/citation-ledger")
+def citation_ledger_report(thesis: Thesis = Depends(owned_thesis), db: Session = Depends(get_db)):
+    """Per rujukan: di subbab mana dikutip (beserta kalimatnya) dan bukti grounding-nya. Tanpa LLM."""
+    return citation_ledger.ledger_for_thesis(thesis, db)
+
+
+@router.post("/{thesis_id}/citation-ledger/track")
+async def citation_ledger_track(file: UploadFile = File(...), thesis: Thesis = Depends(owned_thesis), db: Session = Depends(get_db)):
+    """Unggah naskah jadi (DOCX/PDF): setiap kutipan dicocokkan ke rujukan ter-grounding proyek ini. Berkas tidak disimpan."""
+    from app.services.draft_import import MAX_BYTES, ParseError
+
+    limit_user(thesis.user_id, "ledger-track", 10, 60)
+    data = await file.read(MAX_BYTES + 1)
+    try:
+        return citation_ledger.track_upload(thesis, db, file.filename or "naskah", data)
+    except ParseError as exc:
+        raise HTTPException(exc.status, str(exc))
+
+
+class VerifyIn(BaseModel):
+    entries: list[str] = Field(min_length=1, max_length=40)
+
+
+@router.post("/{thesis_id}/citation-ledger/verify")
+async def citation_ledger_verify(payload: VerifyIn, thesis: Thesis = Depends(owned_thesis), db: Session = Depends(get_db)):
+    """Cocokkan entri daftar pustaka naskah yang belum ter-grounding ke OpenAlex/Crossref. Hanya karya yang ditemukan disimpan."""
+    limit_user(thesis.user_id, "ledger-verify", 6, 60)
+    text = chr(10).join(e.strip()[:600] for e in payload.entries if e.strip())
+    result = await foundational.resolve_all(text)
+    found, added = _store_found(thesis, db, result["found"], "Naskah")
+    return {"found": found, "added": added, "not_found": result["not_found"], "unparsed": result["unparsed"]}
 
 
 @router.get("/{thesis_id}/citations/export")

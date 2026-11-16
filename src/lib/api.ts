@@ -5,6 +5,8 @@ import type {
   Activity,
   SlidePlanItem,
   CitationAudit,
+  CitationLedger,
+  LedgerVerifyResult,
   AiStyleReport,
   WebCheckReport,
   Brief,
@@ -720,6 +722,30 @@ export const api = {
 
   slidePlan: (id: string) => request<{ slides: SlidePlanItem[]; provider: string }>(`/theses/${id}/slides/plan`, { method: "POST", body: {} }),
   citationAudit: (id: string) => request<CitationAudit>(`/theses/${id}/citation-audit`),
+  citationLedger: (id: string) => request<CitationLedger>(`/theses/${id}/citation-ledger`),
+  verifyLedgerEntries: (id: string, entries: string[]) => request<LedgerVerifyResult>(`/theses/${id}/citation-ledger/verify`, { body: { entries } }),
+  trackUpload: async (id: string, file: File): Promise<CitationLedger> => {
+    const form = new FormData();
+    form.append("file", file);
+    const session = readSession();
+    let res: Response;
+    try {
+      res = await fetch(`${API_URL}/theses/${id}/citation-ledger/track`, { method: "POST", headers: session ? { Authorization: `Bearer ${session.token}` } : {}, body: form });
+    } catch {
+      throw new ApiError(`Server tidak terjangkau di ${API_URL}.`, 0);
+    }
+    if (!res.ok) {
+      let detail = `Naskah tidak dapat dilacak (${res.status})`;
+      try {
+        const j = await res.json();
+        if (typeof j.detail === "string") detail = j.detail;
+      } catch {
+        /* bukan JSON */
+      }
+      throw new ApiError(detail, res.status);
+    }
+    return res.json();
+  },
   aiStyle: (id: string) => request<AiStyleReport>(`/theses/${id}/integrity/ai-style`),
   webCheck: (id: string) => request<WebCheckReport>(`/theses/${id}/integrity/web`, { method: "POST", body: {} }),
 

@@ -7,6 +7,7 @@ import { AppendixCard } from "@/components/review/appendix-card";
 import { DefenseCard } from "@/components/review/defense-card";
 import { SlidesCard } from "@/components/review/slides-card";
 import { CitationAuditCard } from "@/components/review/citation-audit-card";
+import { CitationLedgerCard } from "@/components/review/citation-ledger-card";
 import { IntegrityCard } from "@/components/review/integrity-card";
 import { FrontMatterCard } from "@/components/review/frontmatter-card";
 import { ShareCard } from "@/components/review/share-card";
@@ -210,6 +211,7 @@ export default function ReviewPage() {
 
       <BibliographyCard project={project} />
 
+      <CitationLedgerCard />
       <CitationAuditCard />
 
       <IntegrityCard />

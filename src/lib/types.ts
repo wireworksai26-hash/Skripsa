@@ -298,6 +298,62 @@ export interface CitationAudit {
   ok: boolean;
 }
 
+export interface LedgerUse {
+  section: string;
+  title: string;
+  marker: string;
+  sentence: string;
+  grounded_snippet: string;
+  own_writing: boolean;
+  year_mismatch: boolean;
+}
+
+export interface LedgerEntry {
+  citation_id: string;
+  number: number;
+  reference: string;
+  short: string;
+  title: string;
+  authors: string[];
+  year: number;
+  journal: string;
+  doi: string;
+  doi_url: string;
+  pdf_url: string;
+  source: string;
+  page: number;
+  evidence: string;
+  uses: LedgerUse[];
+  status: "cited" | "uncited";
+  in_bibliography?: boolean;
+}
+
+export interface LedgerUnmatched {
+  text: string;
+  uses: LedgerUse[];
+}
+
+/** Buku bukti sitasi; hasil pelacakan naskah unggahan menambah ringkasan dan kelompok yang tak terlacak. */
+export interface CitationLedger {
+  source: "platform" | "upload";
+  style: string;
+  entries: LedgerEntry[];
+  unmatched: LedgerUnmatched[];
+  totals: { references: number; cited: number; uncited: number; uses: number };
+  filename?: string;
+  warnings?: string[];
+  summary?: { in_text: number; tracked: number; year_mismatch: number; unverified: number; missing: number; grounded_refs: number };
+  unverified?: Array<{ bibliography_entry: string; markers: string[]; uses: LedgerUse[] }>;
+  missing?: Array<{ text: string; uses: LedgerUse[]; bibliography_entry: string }>;
+  bibliography?: { found: boolean; entries: number; matched: number; unmatched: string[]; never_cited: string[] };
+}
+
+export interface LedgerVerifyResult {
+  found: Array<{ title: string; already: boolean; entry: string }>;
+  added: number;
+  not_found: Array<{ raw: string; reason: string }>;
+}
+
 export interface SlidePlanItem {
   key: string;
   title: string;
