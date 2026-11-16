@@ -45,7 +45,8 @@ const nextConfig = {
   // Memungkinkan build/uji terpisah (NEXT_DIST_DIR=.next-test) tanpa menimpa server `next dev` yang sedang berjalan.
   distDir: process.env.NEXT_DIST_DIR || ".next",
   // Panggilan LLM bisa memakan beberapa menit; bawaan proxy Next memutus lebih cepat.
-  experimental: { proxyTimeout: 300_000 },
+  // Builder Railway punya memori terbatas: satu worker dan optimasi memori webpack mencegah build mati tanpa pesan error.
+  experimental: { proxyTimeout: 300_000, cpus: 1, webpackMemoryOptimizations: true },
   async rewrites() {
     return [{ source: "/api/:path*", destination: `${internalApi}/:path*` }];
   },

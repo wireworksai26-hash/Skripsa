@@ -9,7 +9,7 @@ RUN npm ci
 COPY . .
 # Panggilan API memakai alamat relatif (same-origin). App ID OneSignal bersifat publik dan ditanam saat build.
 ENV NEXT_PUBLIC_API_URL=/api \
-    NEXT_TELEMETRY_DISABLED=1
+    NEXT_TELEMETRY_DISABLED=1 \n    NODE_OPTIONS=--max-old-space-size=2048
 ARG NEXT_PUBLIC_ONESIGNAL_APP_ID=""
 ENV NEXT_PUBLIC_ONESIGNAL_APP_ID=$NEXT_PUBLIC_ONESIGNAL_APP_ID
 RUN npm run build && npm prune --omit=dev
